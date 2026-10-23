@@ -77,3 +77,10 @@ const blank = () =>
 
 export const PRESETS = { multi, ancestry, blank };
 export type PresetName = keyof typeof PRESETS;
+
+export function detectPreset(tree: Tree): PresetName | null {
+  if ("p_self" in tree.people || "p_ggp1" in tree.people) return "multi";
+  if ("p_me" in tree.people || "p_gggf" in tree.people) return "ancestry";
+  if ("p_root" in tree.people) return "blank";
+  return null;
+}

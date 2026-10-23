@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Local-First](https://img.shields.io/badge/Privacy-100%25%20Local-success?style=for-the-badge)](#highlights)
 [![Stack](https://img.shields.io/badge/Stack-Next.js%20%7C%20TypeScript%20%7C%20Tailwind-black?style=for-the-badge&logo=nextdotjs)](#tech)
+[![Deploy with Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?style=for-the-badge&logo=vercel)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FKrisnaSantosa15%2FLineageFlow)
 
 <p align="center">
   <b>An interactive family tree maker built for multiple marriages.</b><br>
@@ -34,18 +35,18 @@ Most family tree tools assume one marriage per person. Real families are messier
 <tr>
 <td width="50%">
 
-### Multi-Union Modeling
+### Multi-Union & Kinship
 * A person can have any number of marriages or partners.
 * Each union is color-coded: 1st marriage, 2nd+ marriage, divorced.
-* Half-siblings and step-parents stay clear.
+* Automatic kinship labels relative to the root person (*Half-Sister*, *Stepmother*, *Uncle*).
 
 </td>
 <td width="50%">
 
 ### Zero Friction
-* No sign-up and no backend.
-* Your data stays in your browser.
-* Import and export as JSON.
+* No sign-up and no backend — 100% local in your browser.
+* Import and export as **JSON** or **GEDCOM 5.5.1 (`.ged`)**.
+* Export crisp **PNG** & **SVG** diagrams or share via a single URL.
 
 </td>
 </tr>
@@ -59,7 +60,8 @@ Most family tree tools assume one marriage per person. Real families are messier
 | :--- | :--- |
 | Done | Port of the original single-file prototype to Next.js + TypeScript |
 | Done | Autosave (`localStorage`), undo/redo history, dark mode |
-| Done | PNG & SVG diagram export, shareable URL links |
+| Done | PNG & SVG diagram export, shareable URL links, `.json` & `.ged` GEDCOM import/export |
+| Done | Automatic kinship calculator & inline marriage union editor |
 | Done | Mobile-ready touch pan, pinch zoom, and bottom-sheet inspector |
 
 ---
@@ -73,13 +75,13 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Run the tests with `npm test`.
+Open [http://localhost:3000](http://localhost:3000). Run unit tests with `npm test` and browser E2E tests with `npm run test:e2e`.
 
 ---
 
 ## Tech
 
-Next.js (App Router), TypeScript, Tailwind CSS v4, Vitest. Deployed on Vercel.
+Next.js (App Router), TypeScript, Tailwind CSS v4, Vitest, Playwright. Ready for one-click deploy on Vercel.
 
 The original prototype is kept in [`family_lineage_diagram_maker.html`](family_lineage_diagram_maker.html) for reference.
 

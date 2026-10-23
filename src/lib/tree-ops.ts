@@ -161,3 +161,34 @@ export function deletePerson(tree: Tree, personId: string): Tree {
   if (next.rootPersonId === personId) next.rootPersonId = Object.keys(next.people)[0];
   return next;
 }
+
+/** Updates a union's status or label immutably. */
+export function updateUnion(
+  tree: Tree,
+  unionId: string,
+  patch: Partial<Pick<Union, "status" | "label">>,
+): Tree {
+  const existing = tree.unions[unionId];
+  if (!existing) return tree;
+  return {
+    ...tree,
+    unions: {
+      ...tree.unions,
+      [unionId]: { ...existing, ...patch },
+    },
+  };
+}
+
+/** Deletes a marriage union and detaches its children without deleting any person. */
+export function deleteUnion(tree: Tree, unionId: string): Tree {
+  if (!tree.unions[unionId]) return tree;
+  const next = structuredClone(tree);
+  const removed = next.unions[unionId];
+  removed.children.forEach((cid) => {
+    if (next.people[cid]?.parentUnionId === unionId) {
+      next.people[cid].parentUnionId = null;
+    }
+  });
+  delete next.unions[unionId];
+  return next;
+}

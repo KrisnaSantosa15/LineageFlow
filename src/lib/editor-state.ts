@@ -1,6 +1,6 @@
 import type { OpResult } from "./tree-ops";
-import { deletePerson } from "./tree-ops";
-import type { Person, Tree } from "./types";
+import { deletePerson, deleteUnion, updateUnion } from "./tree-ops";
+import type { Person, Tree, Union } from "./types";
 
 export interface EditorState {
   tree: Tree;
@@ -13,6 +13,8 @@ export type EditorAction =
   | { type: "apply"; result: OpResult }
   | { type: "select"; id: string }
   | { type: "update"; id: string; patch: Partial<Omit<Person, "id">> }
+  | { type: "updateUnion"; id: string; patch: Partial<Pick<Union, "status" | "label">> }
+  | { type: "deleteUnion"; id: string }
   | { type: "delete"; id: string }
   | { type: "setRoot"; id: string }
   | { type: "search"; query: string };
@@ -36,6 +38,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (!p) return state;
       const tree = { ...state.tree, people: { ...state.tree.people, [p.id]: { ...p, ...action.patch } } };
       return { ...state, tree };
+    }
+    case "updateUnion": {
+      const tree = updateUnion(state.tree, action.id, action.patch);
+      return tree === state.tree ? state : { ...state, tree };
+    }
+    case "deleteUnion": {
+      const tree = deleteUnion(state.tree, action.id);
+      return tree === state.tree ? state : { ...state, tree };
     }
     case "delete": {
       const tree = deletePerson(state.tree, action.id);

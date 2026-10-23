@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { person, tree, union } from "./fixtures";
-import { addChild, addParents, addSibling, addSpouse, deletePerson } from "./tree-ops";
+import {
+  addChild,
+  addParents,
+  addSibling,
+  addSpouse,
+  deletePerson,
+  deleteUnion,
+  updateUnion,
+} from "./tree-ops";
 
 describe("addChild", () => {
   const base = tree(
@@ -117,5 +125,26 @@ describe("deletePerson", () => {
   it("refuses to delete the last person", () => {
     const one = tree([person("me")], [], "me");
     expect(deletePerson(one, "me")).toBe(one);
+  });
+});
+
+describe("updateUnion and deleteUnion", () => {
+  const base = tree(
+    [person("me"), person("ex"), person("kid", "u")],
+    [union("u", ["me", "ex"], ["kid"])],
+    "me",
+  );
+
+  it("updates a union's status and label immutably", () => {
+    const t = updateUnion(base, "u", { status: "divorced", label: "Divorced 2020" });
+    expect(t.unions.u).toMatchObject({ status: "divorced", label: "Divorced 2020" });
+    expect(base.unions.u.status).toBe("married");
+  });
+
+  it("deletes a union and clears parentUnionId on its children", () => {
+    const t = deleteUnion(base, "u");
+    expect(t.unions.u).toBeUndefined();
+    expect(t.people.kid.parentUnionId).toBeNull();
+    expect(t.people.me).toBeDefined();
   });
 });

@@ -1,0 +1,124 @@
+"use client";
+
+import { Copy, FileCode2, Upload, X } from "lucide-react";
+import { useState } from "react";
+import { parseTreeJson, serializeTree } from "@/lib/tree-json";
+import type { Tree } from "@/lib/types";
+
+interface JsonModalProps {
+  tree: Tree;
+  onImport: (tree: Tree) => void;
+  onCopySuccess: () => void;
+  onClose: () => void;
+}
+
+export function JsonModal({
+  tree,
+  onImport,
+  onCopySuccess,
+  onClose,
+}: JsonModalProps) {
+  const [raw, setRaw] = useState(() => serializeTree(tree));
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(raw);
+      onCopySuccess();
+    } catch {
+      setError("Could not copy to clipboard. Select the text manually.");
+    }
+  };
+
+  const handleImport = () => {
+    const result = parseTreeJson(raw);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    onImport(result.tree);
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="json-modal-title"
+      className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4"
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <h3
+            id="json-modal-title"
+            className="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2"
+          >
+            <FileCode2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            Import / Export Family Tree JSON
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close modal"
+            className="w-8 h-8 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Copy this JSON to save your family tree locally, or paste previously
+            exported JSON below to restore it.
+          </p>
+
+          <textarea
+            rows={10}
+            aria-label="Family tree JSON"
+            value={raw}
+            onChange={(e) => {
+              setRaw(e.target.value);
+              if (error) setError(null);
+            }}
+            className="w-full p-3 text-xs font-mono bg-slate-900 text-emerald-300 rounded-xl border border-slate-700 focus:outline-none"
+          />
+
+          {error && (
+            <p
+              role="alert"
+              className="text-xs font-medium text-rose-600 dark:text-rose-400"
+            >
+              {error}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy JSON
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleImport}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" /> Load JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

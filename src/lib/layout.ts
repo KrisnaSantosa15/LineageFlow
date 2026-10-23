@@ -1,4 +1,4 @@
-import { CARD_WIDTH, CLUSTER_GAP, LEVEL_HEIGHT, SPOUSE_GAP } from "./constants";
+import { CARD_HEIGHT, CARD_WIDTH, CLUSTER_GAP, LEVEL_HEIGHT, SPOUSE_GAP, UNION_COLOR_COUNT } from "./constants";
 import { assignGenerations } from "./generations";
 import type { Tree } from "./types";
 
@@ -7,8 +7,13 @@ export interface Point {
   y: number;
 }
 
+export interface UnionPoint extends Point {
+  colorIdx: number;
+}
+
 export interface Layout {
   positions: Record<string, Point>;
+  unionPositions: Record<string, UnionPoint>;
   gens: Record<string, number>;
 }
 
@@ -95,5 +100,26 @@ export function computeLayout(tree: Tree): Layout {
     });
   }
 
-  return { positions, gens };
+  const unionPositions: Record<string, UnionPoint> = {};
+  Object.values(tree.unions).forEach((u) => {
+    const partners = u.partners.filter((id) => positions[id]);
+    if (partners.length === 0) return;
+
+    if (partners.length === 1) {
+      const p = positions[partners[0]];
+      unionPositions[u.id] = { x: p.x + CARD_WIDTH + 18, y: p.y + CARD_HEIGHT / 2, colorIdx: 0 };
+      return;
+    }
+
+    const p1 = positions[partners[0]];
+    const p2 = positions[partners[1]];
+    const marriageIdx = Math.max(0, unionsOf(tree, partners[0]).findIndex((x) => x.id === u.id));
+    unionPositions[u.id] = {
+      x: (Math.min(p1.x, p2.x) + CARD_WIDTH + Math.max(p1.x, p2.x)) / 2,
+      y: (p1.y + p2.y) / 2 + CARD_HEIGHT / 2 + (marriageIdx * 10 - 4),
+      colorIdx: marriageIdx % UNION_COLOR_COUNT,
+    };
+  });
+
+  return { positions, unionPositions, gens };
 }

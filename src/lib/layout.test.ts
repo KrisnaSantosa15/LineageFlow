@@ -50,3 +50,22 @@ describe("computeLayout refinement", () => {
     expect(Math.abs(childCenter - parentMid)).toBeLessThan(Math.abs(parentMid));
   });
 });
+
+describe("computeLayout union hubs", () => {
+  const t = tree(
+    [person("me"), person("ex"), person("now")],
+    [union("u1", ["me", "ex"]), union("u2", ["me", "now"])],
+    "me",
+  );
+  const { positions: p, unionPositions: h } = computeLayout(t);
+
+  it("centers a hub in the gap between its partners", () => {
+    expect(h.u1.x).toBe((p.ex.x + CARD_WIDTH + p.me.x) / 2);
+  });
+
+  it("gives each marriage of a person its own color and a lower hub", () => {
+    expect(h.u1.colorIdx).toBe(0);
+    expect(h.u2.colorIdx).toBe(1);
+    expect(h.u2.y).toBeGreaterThan(h.u1.y);
+  });
+});

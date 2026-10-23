@@ -57,10 +57,10 @@ Most family tree tools assume one marriage per person. Real families are messier
 
 | Status | Feature |
 | :--- | :--- |
-| In progress | Port of the original single-file prototype to Next.js |
-| Planned | Autosave, undo/redo, dark mode |
-| Planned | PNG/SVG export, shareable links |
-| Planned | Fully usable on mobile |
+| Done | Port of the original single-file prototype to Next.js + TypeScript |
+| Done | Autosave (`localStorage`), undo/redo history, dark mode |
+| Done | PNG & SVG diagram export, shareable URL links |
+| Done | Mobile-ready touch pan, pinch zoom, and bottom-sheet inspector |
 
 ---
 

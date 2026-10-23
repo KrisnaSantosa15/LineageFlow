@@ -310,8 +310,8 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
               aria-label="Tree summary"
               className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block"
             >
-              {stats.memberCount} members · {stats.unionCount} unions ·{" "}
-              {stats.generationCount} generations
+              {stats.generationCount} Generations · {stats.remarriageCount}{" "}
+              Multi-Unions
             </p>
           </div>
         </div>

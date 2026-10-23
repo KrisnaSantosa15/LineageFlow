@@ -32,6 +32,7 @@ test.describe("LineageFlow E2E", () => {
 
     await page.goto("/app");
     await expect(page.getByText("16 Members · 6 Unions")).toBeVisible();
+    await expect(page.getByText("5 Generations · 2 Multi-Unions")).toBeVisible();
     await expect(page.getByTestId("kinship-badge")).toHaveText("Self (Root)");
 
     // Select half-brother Lucas Sterling and verify kinship badge
@@ -57,11 +58,24 @@ test.describe("LineageFlow E2E", () => {
     await page.getByRole("button", { name: "Redo" }).click();
     await expect(page.getByText("17 Members · 6 Unions")).toBeVisible();
 
-    // Open JSON modal and verify serialized tree contains Nora Sterling
+    // Open JSON modal, verify Save .ged and Save .json buttons, and test GEDCOM import
     await page.getByRole("button", { name: "Import or export JSON" }).click();
+    await expect(page.getByRole("button", { name: "Save .json" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save .ged" })).toBeVisible();
     const jsonField = page.getByRole("textbox", { name: "Family tree JSON" });
     await expect(jsonField).toHaveValue(/Nora Sterling/);
     await page.getByRole("button", { name: "Close", exact: true }).click();
+
+    // Search for Uncle Thomas Sterling via toolbar search box
+    await page.getByLabel("Find family member").fill("Thomas Sterling");
+    await expect(page.getByTestId("kinship-badge")).toHaveText("Uncle");
+
+    // Search for Sarah Jenkins and dissolve her union with Alex
+    await page.getByLabel("Find family member").fill("Sarah Jenkins");
+    await expect(page.getByTestId("kinship-badge")).toHaveText("Ex-Spouse");
+    await page.getByRole("button", { name: "Dissolve Union #1" }).click();
+    await expect(page.getByText("17 Members · 5 Unions")).toBeVisible();
+    await expect(page.getByText("5 Generations · 1 Multi-Unions")).toBeVisible();
 
     // Toggle dark mode
     await page.getByRole("button", { name: "Toggle color theme" }).click();

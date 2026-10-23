@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CARD_HEIGHT, CARD_WIDTH } from "./constants";
-import { fitView, zoomAt } from "./viewport";
+import { centerOn, fitView, zoomAt } from "./viewport";
 
 describe("zoomAt", () => {
   it("keeps the point under the cursor fixed", () => {
@@ -27,5 +27,13 @@ describe("fitView", () => {
 
   it("never zooms in past 110% on a tiny tree", () => {
     expect(fitView({ a: { x: 0, y: 0 } }, { width: 3000, height: 3000 }).scale).toBe(1.1);
+  });
+});
+
+describe("centerOn", () => {
+  it("puts the card center at the viewport center", () => {
+    const v = centerOn({ x: 0, y: 0, scale: 2 }, { x: 50, y: 70 }, { width: 800, height: 600 });
+    expect(v.x + (50 + CARD_WIDTH / 2) * 2).toBeCloseTo(400);
+    expect(v.y + (70 + CARD_HEIGHT / 2) * 2).toBeCloseTo(300);
   });
 });

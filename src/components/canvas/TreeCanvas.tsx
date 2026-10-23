@@ -13,7 +13,7 @@ import {
   User,
   Venus,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildConnectorGeometry } from "@/lib/connectors";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/lib/constants";
 import { generationLabel } from "@/lib/labels";
@@ -48,6 +48,8 @@ export function TreeCanvas({
   className = "",
 }: TreeCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+  const wheelTimeoutRef = useRef<number | null>(null);
   const dragRef = useRef<{
     active: boolean;
     startX: number;
@@ -62,6 +64,7 @@ export function TreeCanvas({
     const el = viewportRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    setIsInteracting(false);
     onViewChange(fitView(layout.positions, { width: rect.width, height: rect.height }));
   }, [layout.positions, onViewChange]);
 
@@ -70,6 +73,13 @@ export function TreeCanvas({
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      setIsInteracting(true);
+      if (wheelTimeoutRef.current !== null) {
+        window.clearTimeout(wheelTimeoutRef.current);
+      }
+      wheelTimeoutRef.current = window.setTimeout(() => {
+        setIsInteracting(false);
+      }, 120);
       const rect = el.getBoundingClientRect();
       const delta = e.deltaY < 0 ? 0.08 : -0.08;
       onViewChange(
@@ -83,6 +93,7 @@ export function TreeCanvas({
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest("[data-node-interactive]")) return;
+    setIsInteracting(true);
     dragRef.current = {
       active: true,
       startX: e.clientX - view.x,
@@ -101,7 +112,10 @@ export function TreeCanvas({
       });
     };
     const onUp = () => {
-      dragRef.current.active = false;
+      if (dragRef.current.active) {
+        dragRef.current.active = false;
+        setIsInteracting(false);
+      }
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -114,6 +128,7 @@ export function TreeCanvas({
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest("[data-node-interactive]")) return;
+    setIsInteracting(true);
     if (e.touches.length === 1) {
       dragRef.current = {
         active: true,
@@ -158,6 +173,7 @@ export function TreeCanvas({
   const handleTouchEnd = () => {
     dragRef.current.active = false;
     dragRef.current.pinchDist = null;
+    setIsInteracting(false);
   };
 
   const zoomStep = (delta: number) => {
@@ -165,6 +181,7 @@ export function TreeCanvas({
     const rect = el?.getBoundingClientRect();
     const cx = rect ? rect.width / 2 : 400;
     const cy = rect ? rect.height / 2 : 300;
+    setIsInteracting(false);
     onViewChange(zoomAt(view, delta, { x: cx, y: cy }));
   };
 
@@ -181,7 +198,9 @@ export function TreeCanvas({
       className={`bg-dot-grid relative flex-1 h-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none ${className}`}
     >
       <div
-        className="absolute top-0 left-0 origin-top-left"
+        className={`absolute top-0 left-0 origin-top-left ${
+          isInteracting ? "" : "canvas-camera-smooth"
+        }`}
         style={{
           transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
         }}
@@ -351,7 +370,7 @@ export function TreeCanvas({
         <button
           type="button"
           onClick={() => zoomStep(-0.15)}
-          className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+          className="btn-tactile w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center cursor-pointer"
           title="Zoom Out"
           aria-label="Zoom out"
         >
@@ -360,7 +379,7 @@ export function TreeCanvas({
         <button
           type="button"
           onClick={handleFit}
-          className="text-xs font-semibold text-slate-700 dark:text-slate-200 px-2 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 tabular-nums"
+          className="btn-tactile text-xs font-semibold text-slate-700 dark:text-slate-200 px-2 py-1 rounded-lg cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 tabular-nums"
           title="Reset Zoom"
         >
           {Math.round(view.scale * 100)}%
@@ -368,7 +387,7 @@ export function TreeCanvas({
         <button
           type="button"
           onClick={() => zoomStep(0.15)}
-          className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+          className="btn-tactile w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center cursor-pointer"
           title="Zoom In"
           aria-label="Zoom in"
         >
@@ -378,7 +397,7 @@ export function TreeCanvas({
         <button
           type="button"
           onClick={handleFit}
-          className="px-2.5 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+          className="btn-tactile px-2.5 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
           title="Fit Entire Tree"
         >
           <Expand className="w-3.5 h-3.5" /> Fit
@@ -446,27 +465,27 @@ function PersonNodeCard({
     >
       {isSelected && !readOnly && (
         <>
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-semibold shadow-sm whitespace-nowrap">
+          <div className="animate-pop-in absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-semibold shadow-sm whitespace-nowrap">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onQuickAction("parents");
               }}
-              className="hover:text-amber-200 flex items-center gap-1 cursor-pointer"
+              className="btn-tactile hover:text-amber-200 flex items-center gap-1 cursor-pointer"
               title="Add Parents Upward"
             >
               <ArrowUp className="w-2.5 h-2.5" /> Parents
             </button>
           </div>
-          <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900 dark:bg-slate-800 text-white px-2.5 py-0.5 rounded-full text-[10px] font-semibold shadow-sm whitespace-nowrap border border-slate-700">
+          <div className="animate-pop-in absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900 dark:bg-slate-800 text-white px-2.5 py-0.5 rounded-full text-[10px] font-semibold shadow-sm whitespace-nowrap border border-slate-700">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onQuickAction("spouse");
               }}
-              className="hover:text-amber-300 cursor-pointer"
+              className="btn-tactile hover:text-amber-300 cursor-pointer"
               title="Add Spouse / Partner"
             >
               +Spouse
@@ -478,7 +497,7 @@ function PersonNodeCard({
                 e.stopPropagation();
                 onQuickAction("child");
               }}
-              className="hover:text-emerald-300 cursor-pointer"
+              className="btn-tactile hover:text-emerald-300 cursor-pointer"
               title="Add Child Downward"
             >
               +Child
@@ -490,7 +509,7 @@ function PersonNodeCard({
                 e.stopPropagation();
                 onQuickAction("sibling");
               }}
-              className="hover:text-sky-300 cursor-pointer"
+              className="btn-tactile hover:text-sky-300 cursor-pointer"
               title="Add Sibling"
             >
               +Sibling

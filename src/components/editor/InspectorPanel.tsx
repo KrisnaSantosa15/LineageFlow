@@ -126,7 +126,7 @@ export function InspectorPanel({
                 <button
                   type="button"
                   onClick={() => onOpenAddRelative("parents", person.id)}
-                  className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/70 border border-indigo-200 dark:border-indigo-800 text-left flex flex-col items-start transition cursor-pointer"
+                  className="btn-tactile p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/70 border border-indigo-200 dark:border-indigo-800 text-left flex flex-col items-start cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-800 dark:text-indigo-200">
                     <ArrowUp className="w-3.5 h-3.5" /> Add Parents
@@ -139,7 +139,7 @@ export function InspectorPanel({
                 <button
                   type="button"
                   onClick={() => onOpenAddRelative("spouse", person.id)}
-                  className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/70 border border-amber-200 dark:border-amber-800 text-left flex flex-col items-start transition cursor-pointer"
+                  className="btn-tactile p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/70 border border-amber-200 dark:border-amber-800 text-left flex flex-col items-start cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
                     <HeartHandshake className="w-3.5 h-3.5" /> Add Spouse (#
@@ -153,12 +153,12 @@ export function InspectorPanel({
                 <button
                   type="button"
                   onClick={() => onOpenAddRelative("child", person.id)}
-                  className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 text-left flex flex-col items-start transition cursor-pointer"
+                  className="btn-tactile p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 text-left flex flex-col items-start cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-200">
                     <ArrowDown className="w-3.5 h-3.5" /> Add Child
                   </span>
-                  <span className="text-[10px] text-emerald-800 dark:text-indigo-300 mt-0.5">
+                  <span className="text-[10px] text-emerald-800 dark:text-emerald-300 mt-0.5">
                     Choose which marriage
                   </span>
                 </button>
@@ -166,7 +166,7 @@ export function InspectorPanel({
                 <button
                   type="button"
                   onClick={() => onOpenAddRelative("sibling", person.id)}
-                  className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/70 border border-sky-200 dark:border-sky-800 text-left flex flex-col items-start transition cursor-pointer"
+                  className="btn-tactile p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/70 border border-sky-200 dark:border-sky-800 text-left flex flex-col items-start cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5 text-xs font-bold text-sky-900 dark:text-sky-200">
                     <Users className="w-3.5 h-3.5" /> Add Sibling
@@ -187,7 +187,7 @@ export function InspectorPanel({
                 <button
                   type="button"
                   onClick={() => onOpenAddRelative("spouse", person.id)}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  className="btn-tactile text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                 >
                   + New Marriage
                 </button>
@@ -201,7 +201,7 @@ export function InspectorPanel({
                   <button
                     type="button"
                     onClick={() => onOpenAddRelative("spouse", person.id)}
-                    className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer"
+                    className="btn-tactile px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                   >
                     <HeartHandshake className="w-3.5 h-3.5" /> Add 1st Spouse /
                     Partner
@@ -243,7 +243,7 @@ export function InspectorPanel({
                                   <button
                                     type="button"
                                     onClick={() => onSelectPerson(partner.id)}
-                                    className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                    className="btn-tactile text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                                   >
                                     {partner.name}
                                   </button>
@@ -259,7 +259,7 @@ export function InspectorPanel({
                               onClick={() =>
                                 onOpenAddRelative("child", person.id, u.id)
                               }
-                              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs transition cursor-pointer"
+                              className="btn-tactile px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs cursor-pointer"
                             >
                               + Child Here
                             </button>
@@ -268,7 +268,7 @@ export function InspectorPanel({
                               onClick={() => onDeleteUnion(u.id)}
                               title="Dissolve / remove this union"
                               aria-label={`Dissolve Union #${idx + 1}`}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
+                              className="btn-tactile p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer"
                             >
                               <Unlink className="w-3.5 h-3.5" />
                             </button>
@@ -316,7 +316,7 @@ export function InspectorPanel({
                                   key={ch.id}
                                   type="button"
                                   onClick={() => onSelectPerson(ch.id)}
-                                  className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-200 cursor-pointer"
+                                  className="btn-tactile px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-200 cursor-pointer"
                                 >
                                   {ch.name}
                                 </button>
@@ -355,7 +355,7 @@ export function InspectorPanel({
                             <button
                               type="button"
                               onClick={() => onSelectPerson(p.id)}
-                              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                              className="btn-tactile text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                             >
                               {p.name}
                             </button>
@@ -367,7 +367,7 @@ export function InspectorPanel({
                   <button
                     type="button"
                     onClick={() => onOpenAddRelative("sibling", person.id)}
-                    className="px-2 py-1 text-[11px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-400 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer"
+                    className="btn-tactile px-2 py-1 text-[11px] font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-400 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer"
                   >
                     + Sibling
                   </button>

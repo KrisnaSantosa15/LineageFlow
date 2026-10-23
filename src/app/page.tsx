@@ -118,9 +118,9 @@ export default function LandingPage() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => handleSelectPreset(id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer ${
+                    className={`btn-tactile px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer ${
                       active
-                        ? "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs"
+                        ? "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-700"
                         : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >

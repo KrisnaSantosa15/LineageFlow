@@ -101,7 +101,7 @@ export function JsonModal({
       aria-labelledby="json-modal-title"
       className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="animate-pop-in bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <h3
             id="json-modal-title"

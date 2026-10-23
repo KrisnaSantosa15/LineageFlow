@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Check,
   CheckCircle2,
   Crosshair,
   Crown,
@@ -16,6 +17,7 @@ import {
   Sun,
   Undo2,
   WandSparkles,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -30,7 +32,7 @@ import { initialState } from "@/lib/editor-state";
 import { renderTreeToSvgString } from "@/lib/export-svg";
 import { createHistory, historyReducer } from "@/lib/history";
 import { computeLayout } from "@/lib/layout";
-import { PRESETS, type PresetName } from "@/lib/presets";
+import { detectPreset, PRESETS, type PresetName } from "@/lib/presets";
 import { decodeTreeFromParam, encodeTreeToParam } from "@/lib/share-url";
 import { parseTreeJson, serializeTree } from "@/lib/tree-json";
 import type { OpResult } from "@/lib/tree-ops";
@@ -59,10 +61,17 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
   const stats = useMemo(() => computeTreeStats(tree), [tree]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedPreset, setSelectedPreset] = useState<PresetName | null>(initialPreset);
+  const activePreset = useMemo(
+    () => detectPreset(tree) ?? selectedPreset,
+    [tree, selectedPreset],
+  );
   const [view, setView] = useState<View>({ x: 480, y: 260, scale: 0.9 });
   const [modal, setModal] = useState<ModalState | null>(null);
   const [jsonModalOpen, setJsonModalOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [dark, setDark] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [pendingSharedTree, setPendingSharedTree] = useState<Tree | null>(null);
@@ -118,11 +127,13 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
         }
       } else if (presetParam && PRESETS[presetParam]) {
         const presetTree = PRESETS[presetParam]();
+        setSelectedPreset(presetParam);
         dispatch({ type: "load", tree: presetTree });
         fitCurrentTree(presetTree);
       } else if (savedRaw) {
         const parsed = parseTreeJson(savedRaw);
         if (parsed.ok) {
+          setSelectedPreset(detectPreset(parsed.tree));
           dispatch({ type: "load", tree: parsed.tree });
           fitCurrentTree(parsed.tree);
         }
@@ -146,7 +157,7 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     }
   }, [tree, hydrated]);
 
-  // Keyboard shortcuts for Undo / Redo / Escape
+  // Keyboard shortcuts for Undo / Redo / Escape / Quick Search (/)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -161,6 +172,11 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
           target.tagName === "TEXTAREA" ||
           target.tagName === "SELECT")
       ) {
+        return;
+      }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
@@ -192,6 +208,7 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
 
   const handleLoadPreset = (preset: PresetName, label: string) => {
     const nextTree = PRESETS[preset]();
+    setSelectedPreset(preset);
     dispatch({ type: "load", tree: nextTree });
     fitCurrentTree(nextTree);
     showToast(label);
@@ -244,6 +261,8 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     const url = `${window.location.origin}/app?tree=${encoded}`;
     try {
       await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1600);
       showToast("Copied shareable tree link to clipboard");
     } catch {
       showToast("Could not copy link automatically");
@@ -287,28 +306,58 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     img.src = url;
   };
 
+  const presetItems: {
+    id: PresetName;
+    label: string;
+    toastLabel: string;
+    Icon: typeof WandSparkles;
+    iconColor: string;
+  }[] = [
+    {
+      id: "multi",
+      label: "Multi-Marriage Demo",
+      toastLabel: "Loaded Multi-Marriage Family Demo",
+      Icon: WandSparkles,
+      iconColor: "text-indigo-500",
+    },
+    {
+      id: "ancestry",
+      label: "5-Gen Ancestry",
+      toastLabel: "Loaded 5-Generation Deep Ancestry",
+      Icon: Crown,
+      iconColor: "text-amber-500",
+    },
+    {
+      id: "blank",
+      label: "Start Fresh",
+      toastLabel: "Started fresh family tree",
+      Icon: Sprout,
+      iconColor: "text-emerald-500",
+    },
+  ];
+
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
       {/* Top Toolbar */}
-      <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 lg:px-6 flex items-center justify-between gap-2 z-30 shadow-xs shrink-0">
+      <header className="h-16 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/90 dark:border-slate-800 px-3 lg:px-5 flex items-center justify-between gap-2 z-30 shadow-2xs shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/"
-            className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0"
+            className="btn-tactile w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center text-white shadow-xs shrink-0"
             title="LineageFlow Home"
           >
-            <Network className="w-5 h-5" />
+            <Network className="w-4 h-4" />
           </Link>
           <div className="min-w-0">
-            <div className="font-bold text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-tight flex items-center gap-2">
-              <span className="truncate">LineageFlow</span>
-              <span className="text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 hidden sm:inline-block">
+            <div className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-tight flex items-center gap-2">
+              <span className="truncate tracking-tight">LineageFlow</span>
+              <span className="text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200/80 dark:border-indigo-800 hidden sm:inline-block">
                 Multi-Union
               </span>
             </div>
             <p
               aria-label="Tree summary"
-              className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block"
+              className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block tabular-nums"
             >
               {stats.generationCount} Generations · {stats.remarriageCount}{" "}
               Multi-Unions
@@ -316,121 +365,140 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
           </div>
         </div>
 
-        {/* Center Presets */}
-        <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() =>
-              handleLoadPreset("multi", "Loaded Multi-Marriage Family Demo")
-            }
-            className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-xs hover:text-indigo-600 dark:hover:text-indigo-400 transition inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <WandSparkles className="w-3.5 h-3.5 text-indigo-500" />
-            Multi-Marriage Demo
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleLoadPreset("ancestry", "Loaded 5-Generation Deep Ancestry")
-            }
-            className="px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 transition inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <Crown className="w-3.5 h-3.5 text-amber-500" />
-            5-Gen Ancestry
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              handleLoadPreset("blank", "Started fresh family tree")
-            }
-            className="px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 transition inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <Sprout className="w-3.5 h-3.5 text-emerald-500" />
-            Start Fresh
-          </button>
+        {/* Center Segmented Preset Switcher */}
+        <div
+          role="group"
+          aria-label="Preset templates"
+          className="hidden lg:inline-flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80"
+        >
+          {presetItems.map(({ id, label, toastLabel, Icon, iconColor }) => {
+            const isActive = activePreset === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => handleLoadPreset(id, toastLabel)}
+                className={`btn-tactile px-2.5 py-1.5 text-xs font-medium rounded-lg inline-flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-700"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-900/40"
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Right Action Controls */}
-        <div className="flex items-center gap-1.5">
+        {/* Right Action Controls (Grouped Pill Clusters) */}
+        <div className="flex items-center gap-2">
+          {/* Search Input with '/' shortcut and clear button */}
           <div className="relative hidden md:block">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Find family member..."
               aria-label="Find family member"
-              className="pl-8 pr-3 py-1.5 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 w-40 transition text-slate-800 dark:text-slate-100"
+              className="pl-8 pr-7 py-1.5 text-xs bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 w-44 transition text-slate-800 dark:text-slate-100"
             />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => handleSearch("")}
+                aria-label="Clear search"
+                className="btn-tactile absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            ) : (
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                /
+              </kbd>
+            )}
           </div>
 
-          <button
-            type="button"
-            disabled={history.past.length === 0}
-            onClick={() => dispatch({ type: "undo" })}
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-35 rounded-xl transition cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Undo2 className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            disabled={history.future.length === 0}
-            onClick={() => dispatch({ type: "redo" })}
-            title="Redo (Ctrl+Shift+Z)"
-            aria-label="Redo"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-35 rounded-xl transition cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Redo2 className="w-4 h-4" />
-          </button>
+          {/* History Cluster */}
+          <div className="inline-flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+            <button
+              type="button"
+              disabled={history.past.length === 0}
+              onClick={() => dispatch({ type: "undo" })}
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-35 rounded-lg cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              disabled={history.future.length === 0}
+              onClick={() => dispatch({ type: "redo" })}
+              title="Redo (Ctrl+Shift+Z)"
+              aria-label="Redo"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-35 rounded-lg cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleShareUrl}
-            title="Copy Shareable Link"
-            aria-label="Copy shareable link"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-          >
-            <Link2 className="w-4 h-4" />
-          </button>
+          {/* Share & Export Cluster */}
+          <div className="inline-flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+            <button
+              type="button"
+              onClick={handleShareUrl}
+              title="Copy Shareable Link"
+              aria-label="Copy shareable link"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg cursor-pointer"
+            >
+              {linkCopied ? (
+                <Check className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <Link2 className="w-4 h-4" />
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleExportSvg}
-            title="Export SVG"
-            aria-label="Export SVG"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer hidden sm:inline-flex"
-          >
-            <Download className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleExportSvg}
+              title="Export SVG"
+              aria-label="Export SVG"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg cursor-pointer hidden sm:inline-flex"
+            >
+              <Download className="w-4 h-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={handleExportPng}
-            title="Export PNG"
-            aria-label="Export PNG"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer hidden sm:inline-flex"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleExportPng}
+              title="Export PNG"
+              aria-label="Export PNG"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg cursor-pointer hidden sm:inline-flex"
+            >
+              <ImageIcon className="w-4 h-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setJsonModalOpen(true)}
-            title="Import / Export JSON"
-            aria-label="Import or export JSON"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-          >
-            <FileCode2 className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setJsonModalOpen(true)}
+              title="Import / Export JSON or GEDCOM"
+              aria-label="Import or export JSON"
+              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg cursor-pointer"
+            >
+              <FileCode2 className="w-4 h-4" />
+            </button>
+          </div>
 
           <button
             type="button"
             onClick={toggleDark}
             title={dark ? "Switch to light mode" : "Switch to dark mode"}
             aria-label="Toggle color theme"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+            className="btn-tactile p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700/80 cursor-pointer"
           >
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -439,7 +507,7 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
             type="button"
             onClick={handleCenterOnSelected}
             title="Center Tree"
-            className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition inline-flex items-center gap-1.5 cursor-pointer"
+            className="btn-tactile px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-semibold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Crosshair className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Center</span>
@@ -543,10 +611,11 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
         <JsonModal
           tree={tree}
           onImport={(imported) => {
+            setSelectedPreset(detectPreset(imported));
             dispatch({ type: "load", tree: imported });
             setJsonModalOpen(false);
             fitCurrentTree(imported);
-            showToast("Loaded family tree from JSON");
+            showToast("Loaded family tree");
           }}
           onCopySuccess={() => showToast("Copied family tree JSON to clipboard")}
           onClose={() => setJsonModalOpen(false)}
@@ -556,8 +625,9 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
       {/* Toast Notification */}
       {toast && (
         <div
+          key={toast}
           role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 border border-slate-700"
+          className="animate-pop-in fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 border border-slate-700"
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toast}</span>

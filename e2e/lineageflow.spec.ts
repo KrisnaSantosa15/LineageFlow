@@ -77,6 +77,17 @@ test.describe("LineageFlow E2E", () => {
     await expect(page.getByText("17 Members · 5 Unions")).toBeVisible();
     await expect(page.getByText("5 Generations · 1 Multi-Unions")).toBeVisible();
 
+    // Switch preset to 5-Gen Ancestry and verify the switcher pill updates active state
+    const multiBtn = page.getByRole("button", { name: "Multi-Marriage Demo" });
+    const ancestryBtn = page.getByRole("button", { name: "5-Gen Ancestry" });
+    await expect(multiBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(ancestryBtn).toHaveAttribute("aria-pressed", "false");
+
+    await ancestryBtn.click();
+    await expect(ancestryBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(multiBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByText("9 Members · 4 Unions")).toBeVisible();
+
     // Toggle dark mode
     await page.getByRole("button", { name: "Toggle color theme" }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);

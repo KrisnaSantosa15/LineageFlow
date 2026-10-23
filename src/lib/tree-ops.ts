@@ -121,3 +121,29 @@ export function addParents(
   child.parentUnionId = union.id;
   return { tree: next, selectedId: first.id };
 }
+
+/** Adds a sibling under `unionId`; with `null`, shared parents are created for `personId`. */
+export function addSibling(
+  tree: Tree,
+  personId: string,
+  unionId: string | null,
+  data: NewPerson,
+): OpResult {
+  const next = structuredClone(tree);
+  let union = unionId ? next.unions[unionId] : undefined;
+  if (!union) {
+    const target = next.people[personId];
+    const father = makePerson({ name: `Parent of ${target.name}`, gender: "male", note: "Parent" });
+    const mother = makePerson({ name: `Mother of ${target.name}`, gender: "female", note: "Parent" });
+    next.people[father.id] = father;
+    next.people[mother.id] = mother;
+    union = makeUnion([father.id, mother.id], "married", "Parents Marriage");
+    union.children.push(personId);
+    next.unions[union.id] = union;
+    target.parentUnionId = union.id;
+  }
+  const sibling = makePerson(data, union.id);
+  next.people[sibling.id] = sibling;
+  union.children.push(sibling.id);
+  return { tree: next, selectedId: sibling.id };
+}

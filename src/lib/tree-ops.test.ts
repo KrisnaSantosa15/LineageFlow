@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { person, tree, union } from "./fixtures";
-import { addChild, addParents, addSpouse } from "./tree-ops";
+import { addChild, addParents, addSibling, addSpouse } from "./tree-ops";
 
 describe("addChild", () => {
   const base = tree(
@@ -72,5 +72,26 @@ describe("addParents", () => {
     const stepUnion = Object.values(t.unions).find((u) => u.partners.includes(selectedId))!;
     expect(stepUnion.partners).toEqual(["mum", selectedId]);
     expect(t.unions.u.partners).toEqual(["mum", "dad"]);
+  });
+});
+
+describe("addSibling", () => {
+  it("joins the chosen parent union, so a half-sibling lands in the other marriage", () => {
+    const base = tree(
+      [person("me", "u1"), person("dad"), person("m1"), person("m2")],
+      [union("u1", ["dad", "m1"], ["me"]), union("u2", ["dad", "m2"])],
+      "me",
+    );
+    const { tree: t, selectedId } = addSibling(base, "me", "u2", { name: "Half" });
+    expect(t.unions.u2.children).toEqual([selectedId]);
+    expect(t.unions.u1.children).toEqual(["me"]);
+  });
+
+  it("creates shared parents when the person has none", () => {
+    const base = tree([person("me")], [], "me");
+    const { tree: t, selectedId } = addSibling(base, "me", null, { name: "Sib" });
+    const u = t.unions[t.people.me.parentUnionId!];
+    expect(u.children).toEqual(["me", selectedId]);
+    expect(u.partners).toHaveLength(2);
   });
 });

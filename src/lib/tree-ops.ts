@@ -147,3 +147,17 @@ export function addSibling(
   union.children.push(sibling.id);
   return { tree: next, selectedId: sibling.id };
 }
+
+/** Removes a person and cleans up unions. Returns the same tree if it is the last person. */
+export function deletePerson(tree: Tree, personId: string): Tree {
+  if (Object.keys(tree.people).length <= 1) return tree;
+  const next = structuredClone(tree);
+  delete next.people[personId];
+  Object.values(next.unions).forEach((u) => {
+    u.partners = u.partners.filter((id) => id !== personId);
+    u.children = u.children.filter((id) => id !== personId);
+    if (u.partners.length === 0 && u.children.length === 0) delete next.unions[u.id];
+  });
+  if (next.rootPersonId === personId) next.rootPersonId = Object.keys(next.people)[0];
+  return next;
+}

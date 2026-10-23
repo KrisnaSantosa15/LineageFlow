@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { person, tree, union } from "./fixtures";
-import { addChild, addParents, addSibling, addSpouse } from "./tree-ops";
+import { addChild, addParents, addSibling, addSpouse, deletePerson } from "./tree-ops";
 
 describe("addChild", () => {
   const base = tree(
@@ -93,5 +93,29 @@ describe("addSibling", () => {
     const u = t.unions[t.people.me.parentUnionId!];
     expect(u.children).toEqual(["me", selectedId]);
     expect(u.partners).toHaveLength(2);
+  });
+});
+
+describe("deletePerson", () => {
+  const base = tree(
+    [person("me"), person("ex"), person("kid", "u")],
+    [union("u", ["me", "ex"], ["kid"]), union("solo", ["ex"])],
+    "me",
+  );
+
+  it("removes the person from every union and drops emptied unions", () => {
+    const t = deletePerson(base, "ex");
+    expect(t.people.ex).toBeUndefined();
+    expect(t.unions.u.partners).toEqual(["me"]);
+    expect(t.unions.solo).toBeUndefined();
+  });
+
+  it("moves the root to a remaining person when the root is deleted", () => {
+    expect(deletePerson(base, "me").rootPersonId).not.toBe("me");
+  });
+
+  it("refuses to delete the last person", () => {
+    const one = tree([person("me")], [], "me");
+    expect(deletePerson(one, "me")).toBe(one);
   });
 });

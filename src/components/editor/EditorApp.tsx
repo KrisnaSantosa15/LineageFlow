@@ -144,9 +144,14 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     }
   }, [tree, hydrated]);
 
-  // Keyboard shortcuts for Undo / Redo
+  // Keyboard shortcuts for Undo / Redo / Escape
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModal(null);
+        setJsonModalOpen(false);
+        return;
+      }
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -490,6 +495,13 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
           gens={layout.gens}
           onSelectPerson={(id) => dispatch({ type: "select", id })}
           onUpdatePerson={(id, patch) => dispatch({ type: "update", id, patch })}
+          onUpdateUnion={(id, patch) =>
+            dispatch({ type: "updateUnion", id, patch })
+          }
+          onDeleteUnion={(id) => {
+            dispatch({ type: "deleteUnion", id });
+            showToast("Dissolved marriage union");
+          }}
           onDeletePerson={(id) => {
             const name = tree.people[id]?.name || "Member";
             dispatch({ type: "delete", id });

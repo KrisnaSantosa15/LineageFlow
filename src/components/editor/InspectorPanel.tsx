@@ -9,13 +9,15 @@ import {
   MousePointerClick,
   Star,
   Trash2,
+  Unlink,
   UserPen,
   Users,
 } from "lucide-react";
 import { useState } from "react";
 import type { RelativeActionType } from "@/components/canvas/TreeCanvas";
+import { describeRelationship } from "@/lib/kinship";
 import { generationLabel } from "@/lib/labels";
-import type { Person, Tree } from "@/lib/types";
+import type { Person, Tree, Union, UnionStatus } from "@/lib/types";
 import { UNION_COLORS } from "@/lib/union-colors";
 
 interface InspectorPanelProps {
@@ -24,6 +26,11 @@ interface InspectorPanelProps {
   gens: Record<string, number>;
   onSelectPerson: (id: string) => void;
   onUpdatePerson: (id: string, patch: Partial<Omit<Person, "id">>) => void;
+  onUpdateUnion: (
+    id: string,
+    patch: Partial<Pick<Union, "status" | "label">>,
+  ) => void;
+  onDeleteUnion: (id: string) => void;
   onDeletePerson: (id: string) => void;
   onSetRoot: (id: string) => void;
   onOpenAddRelative: (
@@ -39,6 +46,8 @@ export function InspectorPanel({
   gens,
   onSelectPerson,
   onUpdatePerson,
+  onUpdateUnion,
+  onDeleteUnion,
   onDeletePerson,
   onSetRoot,
   onOpenAddRelative,
@@ -46,11 +55,15 @@ export function InspectorPanel({
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const person = selectedId ? tree.people[selectedId] : null;
   const gen = person ? (gens[person.id] ?? 0) : 0;
+  const kinship = person
+    ? describeRelationship(tree, tree.rootPersonId, person.id)
+    : null;
   const myUnions = person
     ? Object.values(tree.unions).filter((u) => u.partners.includes(person.id))
     : [];
-  const parentUnion =
-    person?.parentUnionId ? tree.unions[person.parentUnionId] : undefined;
+  const parentUnion = person?.parentUnionId
+    ? tree.unions[person.parentUnionId]
+    : undefined;
 
   return (
     <aside
@@ -70,8 +83,16 @@ export function InspectorPanel({
             {person ? person.name : "Member Inspector"}
           </h2>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {kinship && (
+            <span
+              data-testid="kinship-badge"
+              className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+            >
+              {kinship}
+            </span>
+          )}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             {person ? generationLabel(gen) : "None"}
           </span>
           <span className="md:hidden text-slate-500 dark:text-slate-400">
@@ -137,7 +158,7 @@ export function InspectorPanel({
                   <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-200">
                     <ArrowDown className="w-3.5 h-3.5" /> Add Child
                   </span>
-                  <span className="text-[10px] text-emerald-800 dark:text-emerald-300 mt-0.5">
+                  <span className="text-[10px] text-emerald-800 dark:text-indigo-300 mt-0.5">
                     Choose which marriage
                   </span>
                 </button>
@@ -231,21 +252,56 @@ export function InspectorPanel({
                                 "Single / Unnamed Partner"
                               )}
                             </div>
-                            {u.label && (
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                {u.label}
-                              </div>
-                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenAddRelative("child", person.id, u.id)
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenAddRelative("child", person.id, u.id)
+                              }
+                              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs transition cursor-pointer"
+                            >
+                              + Child Here
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteUnion(u.id)}
+                              title="Dissolve / remove this union"
+                              aria-label={`Dissolve Union #${idx + 1}`}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
+                            >
+                              <Unlink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inline Union Status & Label Controls */}
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          <select
+                            aria-label={`Union #${idx + 1} status`}
+                            value={u.status}
+                            onChange={(e) =>
+                              onUpdateUnion(u.id, {
+                                status: e.target.value as UnionStatus,
+                              })
                             }
-                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs transition shrink-0 cursor-pointer"
+                            className="px-2 py-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
                           >
-                            + Child Here
-                          </button>
+                            <option value="married">Married</option>
+                            <option value="divorced">Divorced / Ex</option>
+                            <option value="partner">Partner</option>
+                            <option value="widowed">Widowed</option>
+                          </select>
+                          <input
+                            type="text"
+                            aria-label={`Union #${idx + 1} label`}
+                            value={u.label}
+                            placeholder="Label / Year"
+                            onChange={(e) =>
+                              onUpdateUnion(u.id, { label: e.target.value })
+                            }
+                            className="px-2 py-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200"
+                          />
                         </div>
 
                         <div className="pt-1.5 border-t border-slate-200/70 dark:border-slate-700/70">

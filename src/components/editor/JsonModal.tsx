@@ -1,7 +1,7 @@
 "use client";
 
-import { Copy, FileCode2, Upload, X } from "lucide-react";
-import { useState } from "react";
+import { Copy, Download, FileCode2, FolderOpen, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { parseTreeJson, serializeTree } from "@/lib/tree-json";
 import type { Tree } from "@/lib/types";
 
@@ -20,6 +20,7 @@ export function JsonModal({
 }: JsonModalProps) {
   const [raw, setRaw] = useState(() => serializeTree(tree));
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCopy = async () => {
     try {
@@ -28,6 +29,33 @@ export function JsonModal({
     } catch {
       setError("Could not copy to clipboard. Select the text manually.");
     }
+  };
+
+  const handleDownloadFile = () => {
+    const blob = new Blob([raw], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lineageflow-tree.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = typeof reader.result === "string" ? reader.result : "";
+      setRaw(content);
+      const parsed = parseTreeJson(content);
+      if (!parsed.ok) {
+        setError(parsed.error);
+      } else {
+        setError(null);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleImport = () => {
@@ -68,8 +96,8 @@ export function JsonModal({
 
         <div className="p-5 space-y-3">
           <p className="text-xs text-slate-600 dark:text-slate-300">
-            Copy this JSON to save your family tree locally, or paste previously
-            exported JSON below to restore it.
+            Copy or download this JSON to back up your family tree locally, or
+            upload/paste a previously exported JSON file below.
           </p>
 
           <textarea
@@ -92,14 +120,38 @@ export function JsonModal({
             </p>
           )}
 
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Copy className="w-3.5 h-3.5" /> Copy JSON
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadFile}
+                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" /> Save .json
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <FolderOpen className="w-3.5 h-3.5" /> Open .json
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
             <div className="flex gap-2">
               <button
                 type="button"

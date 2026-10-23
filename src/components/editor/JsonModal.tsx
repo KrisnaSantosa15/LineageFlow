@@ -2,6 +2,7 @@
 
 import { Copy, Download, FileCode2, FolderOpen, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { exportTreeToGedcom, importTreeFromGedcom } from "@/lib/gedcom";
 import { parseTreeJson, serializeTree } from "@/lib/tree-json";
 import type { Tree } from "@/lib/types";
 
@@ -41,6 +42,31 @@ export function JsonModal({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadGedcom = () => {
+    const ged = exportTreeToGedcom(tree);
+    const blob = new Blob([ged], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lineageflow-tree.ged";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseRawInput = (content: string): { ok: true; tree: Tree } | { ok: false; error: string } => {
+    if (content.trimStart().startsWith("0 HEAD")) {
+      try {
+        return { ok: true, tree: importTreeFromGedcom(content) };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Invalid GEDCOM file.",
+        };
+      }
+    }
+    return parseTreeJson(content);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -48,7 +74,7 @@ export function JsonModal({
     reader.onload = () => {
       const content = typeof reader.result === "string" ? reader.result : "";
       setRaw(content);
-      const parsed = parseTreeJson(content);
+      const parsed = parseRawInput(content);
       if (!parsed.ok) {
         setError(parsed.error);
       } else {
@@ -59,7 +85,7 @@ export function JsonModal({
   };
 
   const handleImport = () => {
-    const result = parseTreeJson(raw);
+    const result = parseRawInput(raw);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -138,6 +164,13 @@ export function JsonModal({
               </button>
               <button
                 type="button"
+                onClick={handleDownloadGedcom}
+                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" /> Save .ged
+              </button>
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition inline-flex items-center gap-1.5 cursor-pointer"
               >
@@ -146,7 +179,7 @@ export function JsonModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json,application/json"
+                accept=".json,.ged,application/json,text/plain"
                 onChange={handleFileUpload}
                 className="hidden"
               />

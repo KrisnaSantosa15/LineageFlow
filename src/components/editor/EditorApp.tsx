@@ -34,6 +34,7 @@ import { PRESETS, type PresetName } from "@/lib/presets";
 import { decodeTreeFromParam, encodeTreeToParam } from "@/lib/share-url";
 import { parseTreeJson, serializeTree } from "@/lib/tree-json";
 import type { OpResult } from "@/lib/tree-ops";
+import { computeTreeStats } from "@/lib/tree-stats";
 import type { Tree } from "@/lib/types";
 import { centerOn, fitView, type View } from "@/lib/viewport";
 
@@ -55,6 +56,7 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
 
   const { tree, selectedId, search } = history.present;
   const layout = useMemo(() => computeLayout(tree), [tree]);
+  const stats = useMemo(() => computeTreeStats(tree), [tree]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 480, y: 260, scale: 0.9 });
@@ -304,8 +306,12 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
                 Multi-Union
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 hidden xl:block">
-              Interactive Family Tree & Multi-Marriage Diagram Maker
+            <p
+              aria-label="Tree summary"
+              className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block"
+            >
+              {stats.memberCount} members · {stats.unionCount} unions ·{" "}
+              {stats.generationCount} generations
             </p>
           </div>
         </div>

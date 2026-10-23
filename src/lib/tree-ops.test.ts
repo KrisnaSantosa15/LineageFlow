@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { person, tree, union } from "./fixtures";
-import { addChild, addSpouse } from "./tree-ops";
+import { addChild, addParents, addSpouse } from "./tree-ops";
 
 describe("addChild", () => {
   const base = tree(
@@ -43,5 +43,34 @@ describe("addSpouse", () => {
     const { tree: t } = addSpouse(base, "me", { existingId: "old" }, "married", "Married");
     expect(Object.keys(t.people)).toHaveLength(2);
     expect(Object.values(t.unions)[0].partners).toEqual(["me", "old"]);
+  });
+});
+
+describe("addParents", () => {
+  it("creates a father-and-mother union above a person with no parents", () => {
+    const base = tree([person("me")], [], "me");
+    const { tree: t } = addParents(base, "me", "pair", { name: "Rob Lee", gender: "male" });
+    const u = t.unions[t.people.me.parentUnionId!];
+    expect(u.partners).toHaveLength(2);
+    expect(u.children).toEqual(["me"]);
+    expect(t.people[u.partners[1]].gender).toBe("female");
+  });
+
+  it("adds the second parent to a single-parent union", () => {
+    const base = tree([person("me", "u"), person("mum")], [union("u", ["mum"], ["me"])], "me");
+    const { tree: t, selectedId } = addParents(base, "me", "pair", { name: "Dad", gender: "male" });
+    expect(t.unions.u.partners).toEqual(["mum", selectedId]);
+  });
+
+  it("adds a step-parent union when both parents already exist", () => {
+    const base = tree(
+      [person("me", "u"), person("mum"), person("dad")],
+      [union("u", ["mum", "dad"], ["me"])],
+      "me",
+    );
+    const { tree: t, selectedId } = addParents(base, "me", "pair", { name: "Step" });
+    const stepUnion = Object.values(t.unions).find((u) => u.partners.includes(selectedId))!;
+    expect(stepUnion.partners).toEqual(["mum", selectedId]);
+    expect(t.unions.u.partners).toEqual(["mum", "dad"]);
   });
 });

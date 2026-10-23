@@ -69,3 +69,55 @@ export function addSpouse(
   next.unions[union.id] = union;
   return { tree: next, selectedId: spouseId };
 }
+
+/**
+ * Adds a parent above `childId`. With no parents yet, "pair" also creates a spouse of the
+ * opposite gender; a single-parent union gets its second partner; a full union gets a
+ * step-parent married to the first parent.
+ */
+export function addParents(
+  tree: Tree,
+  childId: string,
+  mode: "pair" | "single",
+  data: NewPerson,
+): OpResult {
+  const next = structuredClone(tree);
+  const child = next.people[childId];
+  const existing = child.parentUnionId ? next.unions[child.parentUnionId] : undefined;
+
+  if (existing && existing.partners.length < 2) {
+    const p = makePerson({ ...data, note: data.note || "Parent" });
+    next.people[p.id] = p;
+    existing.partners.push(p.id);
+    return { tree: next, selectedId: p.id };
+  }
+
+  if (existing) {
+    const step = makePerson({ ...data, note: data.note || "Step-Parent" });
+    next.people[step.id] = step;
+    const union = makeUnion([existing.partners[0], step.id], "married", "2nd Marriage");
+    next.unions[union.id] = union;
+    return { tree: next, selectedId: step.id };
+  }
+
+  const first = makePerson({ ...data, note: data.note || (mode === "pair" ? "Father" : "Parent") });
+  next.people[first.id] = first;
+  const partners = [first.id];
+  if (mode === "pair") {
+    const lastName = data.name.includes(" ") ? data.name.split(" ").slice(-1)[0] : "";
+    const second = makePerson({
+      name: `Mother (${lastName || "Spouse"})`,
+      gender: data.gender === "male" ? "female" : "male",
+      birth: data.birth,
+      death: data.death,
+      note: "Mother (Click to rename)",
+    });
+    next.people[second.id] = second;
+    partners.push(second.id);
+  }
+  const union = makeUnion(partners, "married", mode === "pair" ? "Parents Marriage" : "Parent");
+  union.children.push(childId);
+  next.unions[union.id] = union;
+  child.parentUnionId = union.id;
+  return { tree: next, selectedId: first.id };
+}

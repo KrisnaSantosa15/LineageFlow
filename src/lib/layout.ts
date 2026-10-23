@@ -70,5 +70,30 @@ export function computeLayout(tree: Tree): Layout {
     ids.forEach((id) => (positions[id].x += shift));
   });
 
+  const genKeys = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+
+  // Refinement: shift each generation toward the midpoint of its members' parents.
+  for (let pass = 0; pass < 3; pass++) {
+    genKeys.forEach((gen) => {
+      const ids = buckets[gen];
+      let sum = 0;
+      let count = 0;
+      ids.forEach((id) => {
+        const parentUnion = tree.unions[tree.people[id].parentUnionId ?? ""];
+        if (!parentUnion) return;
+        const xs = parentUnion.partners
+          .filter((p) => positions[p])
+          .map((p) => positions[p].x + CARD_WIDTH / 2);
+        if (xs.length === 0) return;
+        sum += xs.reduce((a, b) => a + b, 0) / xs.length - (positions[id].x + CARD_WIDTH / 2);
+        count++;
+      });
+      if (count > 0) {
+        const shift = (sum / count) * 0.6;
+        ids.forEach((id) => (positions[id].x += shift));
+      }
+    });
+  }
+
   return { positions, gens };
 }

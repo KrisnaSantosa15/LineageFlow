@@ -35,3 +35,18 @@ describe("computeLayout people positions", () => {
     expect(positions.me.y).toBe(0);
   });
 });
+
+describe("computeLayout refinement", () => {
+  it("pulls children toward the midpoint of their parents", () => {
+    const t = tree(
+      [person("ex"), person("dad"), person("mom"), person("me", "u2")],
+      [union("u1", ["dad", "ex"]), union("u2", ["dad", "mom"], ["me"])],
+      "me",
+    );
+    const { positions: p } = computeLayout(t);
+    const parentMid = (p.dad.x + p.mom.x + CARD_WIDTH) / 2;
+    const childCenter = p.me.x + CARD_WIDTH / 2;
+    // a lone child is first centered at 0; refinement must move it toward its parents
+    expect(Math.abs(childCenter - parentMid)).toBeLessThan(Math.abs(parentMid));
+  });
+});

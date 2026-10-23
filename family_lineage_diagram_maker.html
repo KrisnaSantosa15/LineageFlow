@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LineageFlow - Multi-Union Family Tree Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        /* Custom Dot Grid Background for Canvas */
+        .bg-dot-grid {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
+            background-size: 24px 24px;
+        }
+        .dark .bg-dot-grid {
+            background-color: #0f172a;
+            background-image: radial-gradient(#334155 1.25px, transparent 1.25px);
+        }
+        .node-card {
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .node-card:hover {
+            transform: translateY(-2px);
+        }
+        .union-pill {
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .union-pill:hover {
+            transform: scale(1.1);
+        }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen w-screen flex flex-col">
+
+    <header class="h-16 bg-white border-b border-slate-200 px-4 lg:px-6 flex items-center justify-between z-30 shadow-sm shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                <i class="fa-solid fa-sitemap text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-900 text-base sm:text-lg leading-tight flex items-center gap-2">
+                    LineageFlow
+                    <span class="text-xs font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200">Multi-Union</span>
+                </h1>
+                <p class="text-xs text-slate-500 hidden sm:block">Interactive Family Tree & Multi-Marriage Diagram Maker</p>
+            </div>
+        </div>
+
+        <!-- Center Search & Presets -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button onclick="loadSampleData('multi')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white text-slate-700 shadow-sm hover:text-indigo-600 transition">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-indigo-500"></i> Multi-Marriage Demo
+            </button>
+            <button onclick="loadSampleData('ancestry')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:bg-white hover:shadow-sm transition">
+                <i class="fa-solid fa-crown mr-1 text-amber-500"></i> Deep 5-Gen Ancestry
+            </button>
+            <button onclick="startBlankTree()" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-600 hover:bg-white hover:shadow-sm transition">
+                <i class="fa-solid fa-seedling mr-1 text-emerald-500"></i> Start Fresh (1 Person)
+            </button>
+        </div>
+
+        <!-- Right Action Controls -->
+        <div class="flex items-center gap-2">
+            <div class="relative hidden sm:block">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input id="searchInput" type="text" placeholder="Find family member..." oninput="handleSearch(this.value)"
+                    class="pl-8 pr-3 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-500 w-44 transition">
+            </div>
+
+            <button onclick="openJsonModal()" title="Import / Export JSON" class="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition text-sm">
+                <i class="fa-solid fa-file-code"></i>
+            </button>
+
+            <button onclick="centerCanvasOnSelected()" title="Center Tree" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-xl border border-indigo-200 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-crosshairs"></i>
+                <span class="hidden sm:inline">Center</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex relative overflow-hidden">
+
+        <!-- Interactive Canvas Viewport -->
+        <main id="canvasViewport" class="flex-1 h-full bg-dot-grid relative overflow-hidden cursor-grab active:cursor-grabbing">
+            <!-- Transform Container for Pan & Zoom -->
+            <div id="canvasTransform" class="absolute top-0 left-0 origin-top-left" style="transform: translate(0px, 0px) scale(1);">
+                <!-- SVG Layer for Marriage & Parent-Child Connectors -->
+                <svg id="connectionsSvg" class="overflow-visible pointer-events-none absolute top-0 left-0" width="1" height="1"></svg>
+                <!-- HTML Layer for Person Cards & Union Nodes -->
+                <div id="nodesLayer" class="relative"></div>
+            </div>
+
+            <!-- Floating Bottom-Left Legend & Stats -->
+            <div class="absolute bottom-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
+                <div class="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-3 shadow-lg pointer-events-auto max-w-xs">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Diagram Legend</span>
+                        <span id="statsBadge" class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">0 Members</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-amber-500 inline-block"></span>
+                            <span>1st Marriage</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-purple-500 inline-block"></span>
+                            <span>2nd+ Marriage</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 border-b-2 border-dashed border-rose-400 inline-block"></span>
+                            <span>Divorced / Ex</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-amber-100 border border-amber-400 inline-flex items-center justify-center text-[8px] text-amber-700">💍</span>
+                            <span>Union Hub</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Bottom-Right Zoom Controls -->
+            <div class="absolute bottom-4 right-4 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-1.5 shadow-lg">
+                <button onclick="zoomCanvas(-0.15)" class="w-8 h-8 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center justify-center transition" title="Zoom Out">
+                    <i class="fa-solid fa-minus text-xs"></i>
+                </button>
+                <span id="zoomLabel" onclick="resetZoom()" class="text-xs font-semibold text-slate-600 px-2 cursor-pointer hover:text-indigo-600" title="Reset Zoom">100%</span>
+                <button onclick="zoomCanvas(0.15)" class="w-8 h-8 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center justify-center transition" title="Zoom In">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                </button>
+                <div class="h-4 w-px bg-slate-200 mx-0.5"></div>
+                <button onclick="fitTreeToScreen()" class="px-2.5 h-8 rounded-xl hover:bg-slate-100 text-slate-600 text-xs font-medium flex items-center gap-1 transition" title="Fit Entire Tree">
+                    <i class="fa-solid fa-expand text-xs"></i> Fit
+                </button>
+            </div>
+        </main>
+
+        <aside id="inspectorPanel" class="w-80 sm:w-96 bg-white border-l border-slate-200 h-full flex flex-col z-20 shadow-xl shrink-0 transition-all duration-200">
+            <!-- Inspector Header -->
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-user-pen text-indigo-600 text-sm"></i>
+                    <h2 class="font-bold text-slate-800 text-sm">Member Inspector & Actions</h2>
+                </div>
+                <span id="selectedGenBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">Gen 0</span>
+            </div>
+
+            <!-- Scrollable Inspector Body -->
+            <div id="inspectorContent" class="flex-1 overflow-y-auto p-4 space-y-5">
+                <!-- Populated dynamically by JS -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Relationship Action Modal -->
+    <div id="actionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <h3 id="modalTitle" class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-indigo-600"></i> Add Relative
+                </h3>
+                <button onclick="closeActionModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="relativeForm" onsubmit="submitRelativeForm(event)" class="p-5 space-y-4">
+                <input type="hidden" id="formActionType" value="">
+                <input type="hidden" id="formTargetPersonId" value="">
+
+                <!-- Dynamic Context Banner -->
+                <div id="modalContextBanner" class="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-800"></div>
+
+                <!-- Union Selector (Shown when adding a child or sibling) -->
+                <div id="unionSelectorWrap" class="hidden space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-700" id="unionSelectLabel">Select Marriage / Parents Union</label>
+                    <select id="formUnionSelect" onchange="handleUnionSelectChange()" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                    </select>
+                    <p id="unionSelectHint" class="text-[11px] text-slate-500"></p>
+                </div>
+
+                <!-- Marriage Details (Shown when adding a Spouse/Partner or creating new spouse for child) -->
+                <div id="marriageFieldsWrap" class="hidden p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-bold text-amber-900">
+                        <i class="fa-solid fa-ring text-amber-600"></i> Marriage / Partnership Details
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">Union Status</label>
+                            <select id="formUnionStatus" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg">
+                                <option value="married">Married</option>
+                                <option value="divorced">Divorced / Ex</option>
+                                <option value="partner">Life Partner</option>
+                                <option value="widowed">Widowed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">Marriage Order / Year</label>
+                            <input type="text" id="formUnionLabel" placeholder="e.g. 1st Marriage (1998)" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Person Details -->
+                <div id="personDetailsWrap" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                        <input type="text" id="formPersonName" required placeholder="e.g. Eleanor Vance" class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
+                            <select id="formPersonGender" class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other / Non-binary</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Birth - Death Years</label>
+                            <div class="flex items-center gap-1.5">
+                                <input type="text" id="formPersonBirth" placeholder="1975" class="w-1/2 px-2.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                                <span class="text-slate-400">-</span>
+                                <input type="text" id="formPersonDeath" placeholder="Living" class="w-1/2 px-2.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Role / Bio Note (Optional)</label>
+                        <input type="text" id="formPersonNote" placeholder="e.g. Architect, moved to London" class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Link Existing Person Option (For Cousin/Cross-Marriage or Existing Spouse) -->
+                <div id="existingPartnerWrap" class="hidden pt-1">
+                    <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                        <input type="checkbox" id="useExistingSpouseToggle" onchange="toggleExistingSpouseMode()" class="rounded text-indigo-600">
+                        <span>Marry an existing person already in the diagram</span>
+                    </label>
+                    <select id="formExistingSpouseSelect" class="hidden mt-2 w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl">
+                    </select>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeActionModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition">
+                        Add to Family Tree
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JSON Import / Export Modal -->
+    <div id="jsonModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-code text-indigo-600"></i> Save / Load Family Tree Data (JSON)
+                </h3>
+                <button onclick="closeJsonModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-xs text-slate-600">Copy the JSON below to back up your family diagram, or paste a previously saved JSON to restore it.</p>
+                <textarea id="jsonTextarea" rows="10" class="w-full p-3 font-mono text-xs bg-slate-900 text-emerald-400 rounded-xl focus:outline-none"></textarea>
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="copyJsonToClipboard()" class="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition">
+                        <i class="fa-regular fa-copy mr-1"></i> Copy JSON
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="closeJsonModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Close</button>
+                        <button onclick="importJsonData()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">Load JSON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2 opacity-0 pointer-events-none transition-opacity duration-200">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Updated family tree</span>
+    </div>
+
+    <script>
+        /**
+         * DATA ARCHITECTURE:
+         * - people: Map of id -> { id, name, gender, birth, death, note, parentUnionId, gen }
+         * - unions: Map of id -> { id, partners: [personId1, personId2], children: [childId...], status: 'married'|'divorced'|'partner'|'widowed', label: '1st Marriage' }
+         *
+         * Why Unions as First-Class Nodes?
+         * Because a person can marry 1, 2, 3, or more times, and each marriage (or single-parent union)
+         * produces its own distinct set of children. Storing `parentUnionId` on each child makes half-siblings,
+         * step-parents, and multi-generational ancestors (great-great-grandparents) 100% unambiguous.
+         */
+        let state = {
+            people: {},
+            unions: {},
+            selectedPersonId: null,
+            rootPersonId: null, // Reference person for "Gen 0 (Self)" labels
+            searchQuery: ''
+        };
+
+        // Pan & Zoom state
+        let viewport = {
+            x: 0,
+            y: 0,
+            scale: 1,
+            isDragging: false,
+            startX: 0,
+            startY: 0
+        };
+
+        // Layout Constants
+        const CARD_WIDTH = 188;
+        const CARD_HEIGHT = 96;
+        const LEVEL_HEIGHT = 210;
+        const SPOUSE_GAP = 56;
+        const SIBLING_GAP = 36;
+        const CLUSTER_GAP = 72;
+
+        // Distinct color palette for multiple marriages
+        const UNION_COLORS = [
+            { stroke: '#f59e0b', bg: '#fef3c7', border: '#f59e0b', text: '#b45309' }, // Amber (1st union)
+            { stroke: '#8b5cf6', bg: '#ede9fe', border: '#8b5cf6', text: '#6d28d9' }, // Purple (2nd union)
+            { stroke: '#ec4899', bg: '#fce7f3', border: '#ec4899', text: '#be185d' }, // Pink (3rd union)
+            { stroke: '#06b6d4', bg: '#cffafe', border: '#06b6d4', text: '#0e7490' }  // Cyan (4th union)
+        ];
+
+        function uid(prefix = 'p') {
+            return prefix + '_' + Math.random().toString(36).substring(2, 9);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2400);
+        }
+
+        function loadSampleData(preset = 'multi') {
+            state.people = {};
+            state.unions = {};
+
+            if (preset === 'multi') {
+                // Generation -3 (Great-Grandparents)
+                const ggp1 = addPersonRaw({ id: 'p_ggp1', name: 'Edmund Sterling', gender: 'male', birth: '1902', death: '1981', note: 'Great-Grandfather' });
+                const ggp2 = addPersonRaw({ id: 'p_ggp2', name: 'Clara Montgomery', gender: 'female', birth: '1905', death: '1988', note: 'Great-Grandmother' });
+                const u_ggp = addUnionRaw({ id: 'u_ggp', partners: [ggp1.id, ggp2.id], status: 'married', label: 'Married 1924' });
+
+                // Generation -2 (Grandparents)
+                const gp1 = addPersonRaw({ id: 'p_gp1', name: 'Arthur Sterling', gender: 'male', birth: '1928', death: '2008', note: 'Grandfather', parentUnionId: u_ggp.id });
+                u_ggp.children.push(gp1.id);
+                const gp2 = addPersonRaw({ id: 'p_gp2', name: 'Margaret Hayes', gender: 'female', birth: '1931', death: '2015', note: 'Grandmother' });
+                const u_gp = addUnionRaw({ id: 'u_gp', partners: [gp1.id, gp2.id], status: 'married', label: 'Married 1951' });
+
+                // Generation -1 (Parents - Father married twice!)
+                const dad = addPersonRaw({ id: 'p_dad', name: 'Richard Sterling', gender: 'male', birth: '1954', death: 'Living', note: 'Father (Married Twice)', parentUnionId: u_gp.id });
+                const uncle = addPersonRaw({ id: 'p_uncle', name: 'Thomas Sterling', gender: 'male', birth: '1958', death: 'Living', note: 'Uncle', parentUnionId: u_gp.id });
+                u_gp.children.push(dad.id, uncle.id);
+
+                const mom1 = addPersonRaw({ id: 'p_mom1', name: 'helen Vance', gender: 'female', birth: '1956', death: 'Living', note: '1st Wife (Mother)' });
+                mom1.name = 'Helen Vance';
+                const mom2 = addPersonRaw({ id: 'p_mom2', name: 'Diana Brooks', gender: 'female', birth: '1963', death: 'Living', note: '2nd Wife (Stepmother)' });
+
+                const u_dad1 = addUnionRaw({ id: 'u_dad1', partners: [dad.id, mom1.id], status: 'divorced', label: '1st Marriage (1978-1992)' });
+                const u_dad2 = addUnionRaw({ id: 'u_dad2', partners: [dad.id, mom2.id], status: 'married', label: '2nd Marriage (1995)' });
+
+                // Generation 0 (Self, Full Sibling, Half-Sibling from Dad's 2nd Marriage)
+                // Self ALSO married twice with children from both!
+                const self = addPersonRaw({ id: 'p_self', name: 'Alex Sterling (You)', gender: 'male', birth: '1982', death: 'Living', note: '2 Marriages, 3 Kids', parentUnionId: u_dad1.id });
+                const sister = addPersonRaw({ id: 'p_sis', name: 'Claire Sterling', gender: 'female', birth: '1985', death: 'Living', note: 'Full Sister', parentUnionId: u_dad1.id });
+                u_dad1.children.push(self.id, sister.id);
+
+                const halfBro = addPersonRaw({ id: 'p_hbro', name: 'lucas Sterling', gender: 'male', birth: '1997', death: 'Living', note: 'Half-Brother (2nd Marriage)', parentUnionId: u_dad2.id });
+                halfBro.name = 'Lucas Sterling';
+                u_dad2.children.push(halfBro.id);
+
+                // Self's two marriages
+                const spouse1 = addPersonRaw({ id: 'p_sp1', name: 'Sarah Jenkins', gender: 'female', birth: '1983', death: 'Living', note: '1st Spouse (Ex-Wife)' });
+                const spouse2 = addPersonRaw({ id: 'p_sp2', name: 'Maya Lin', gender: 'female', birth: '1986', death: 'Living', note: '2nd Spouse (Current)' });
+
+                const u_self1 = addUnionRaw({ id: 'u_self1', partners: [self.id, spouse1.id], status: 'divorced', label: '1st Marriage (2005)' });
+                const u_self2 = addUnionRaw({ id: 'u_self2', partners: [self.id, spouse2.id], status: 'married', label: '2nd Marriage (2014)' });
+
+                // Generation +1 (Children from 1st and 2nd marriages)
+                const child1 = addPersonRaw({ id: 'p_c1', name: 'Ethan Sterling', gender: 'male', birth: '2007', death: 'Living', note: 'Child from 1st Marriage', parentUnionId: u_self1.id });
+                u_self1.children.push(child1.id);
+
+                const child2 = addPersonRaw({ id: 'p_c2', name: 'Chloe Sterling', gender: 'female', birth: '2016', death: 'Living', note: 'Child from 2nd Marriage', parentUnionId: u_self2.id });
+                const child3 = addPersonRaw({ id: 'p_c3', name: 'Leo Sterling', gender: 'male', birth: '2019', death: 'Living', note: 'Child from 2nd Marriage', parentUnionId: u_self2.id });
+                u_self2.children.push(child2.id, child3.id);
+
+                state.selectedPersonId = self.id;
+                state.rootPersonId = self.id;
+                showToast('Loaded Multi-Marriage Family Demo');
+            } else if (preset === 'ancestry') {
+                // Deep 5-Generation upward ancestry tree
+                const gggf = addPersonRaw({ id: 'p_gggf', name: 'William Pendelton', gender: 'male', birth: '1875', death: '1949', note: 'Great-Great-Grandfather' });
+                const gggm = addPersonRaw({ id: 'p_gggm', name: 'Beatrice Laurent', gender: 'female', birth: '1879', death: '1955', note: 'Great-Great-Grandmother' });
+                const u1 = addUnionRaw({ id: 'u_1', partners: [gggf.id, gggm.id], status: 'married', label: '1899' });
+
+                const ggf = addPersonRaw({ id: 'p_ggf', name: 'Henry Pendelton', gender: 'male', birth: '1903', death: '1978', note: 'Great-Grandfather', parentUnionId: u1.id });
+                u1.children.push(ggf.id);
+                const ggm = addPersonRaw({ id: 'p_ggm', name: 'Florence Nightingale', gender: 'female', birth: '1906', death: '1984', note: 'Great-Grandmother' });
+                const u2 = addUnionRaw({ id: 'u_2', partners: [ggf.id, ggm.id], status: 'married', label: '1926' });
+
+                const gf = addPersonRaw({ id: 'p_gf', name: 'Edward Pendelton', gender: 'male', birth: '1930', death: '2012', note: 'Grandfather', parentUnionId: u2.id });
+                u2.children.push(gf.id);
+                const gm = addPersonRaw({ id: 'p_gm', name: 'Sylvia Rose', gender: 'female', birth: '1933', death: '2018', note: 'Grandmother' });
+                const u3 = addUnionRaw({ id: 'u_3', partners: [gf.id, gm.id], status: 'married', label: '1954' });
+
+                const f = addPersonRaw({ id: 'p_f', name: 'David Pendelton', gender: 'male', birth: '1958', death: 'Living', note: 'Father', parentUnionId: u3.id });
+                u3.children.push(f.id);
+                const m = addPersonRaw({ id: 'p_m', name: 'Catherine Wu', gender: 'female', birth: '1960', death: 'Living', note: 'Mother' });
+                const u4 = addUnionRaw({ id: 'u_4', partners: [f.id, m.id], status: 'married', label: '1983' });
+
+                const me = addPersonRaw({ id: 'p_me', name: 'Olivia Pendelton', gender: 'female', birth: '1988', death: 'Living', note: 'Root Person (You)', parentUnionId: u4.id });
+                u4.children.push(me.id);
+
+                state.selectedPersonId = me.id;
+                state.rootPersonId = me.id;
+                showToast('Loaded 5-Generation Deep Ancestry');
+            }
+
+            renderAll();
+            setTimeout(fitTreeToScreen, 60);
+        }
+
+        function startBlankTree() {
+            state.people = {};
+            state.unions = {};
+            const me = addPersonRaw({
+                id: 'p_root',
+                name: 'Me (Root Member)',
+                gender: 'male',
+                birth: '1995',
+                death: 'Living',
+                note: 'Click actions on the right to add parents, spouses & children'
+            });
+            state.selectedPersonId = me.id;
+            state.rootPersonId = me.id;
+            renderAll();
+            centerCanvasOnSelected();
+            showToast('Started fresh family tree');
+        }
+
+        function addPersonRaw(data) {
+            const p = {
+                id: data.id || uid('p'),
+                name: data.name || 'Unnamed Relative',
+                gender: data.gender || 'other',
+                birth: data.birth || '',
+                death: data.death || 'Living',
+                note: data.note || '',
+                parentUnionId: data.parentUnionId || null
+            };
+            state.people[p.id] = p;
+            return p;
+        }
+
+        function addUnionRaw(data) {
+            const u = {
+                id: data.id || uid('u'),
+                partners: data.partners || [],
+                children: data.children || [],
+                status: data.status || 'married',
+                label: data.label || 'Married'
+            };
+            state.unions[u.id] = u;
+            return u;
+        }
+
+        // Helper: Find all unions where personId is a partner
+        function getPersonUnions(personId) {
+            return Object.values(state.unions).filter(u => u.partners.includes(personId));
+        }
+
+        // Helper: Get partner object in a union relative to personId
+        function getOtherPartner(union, personId) {
+            const otherId = union.partners.find(id => id !== personId);
+            return otherId ? state.people[otherId] : null;
+        }
+
+        /**
+         * GENERATION & COORDINATE SOLVER:
+         * 1. Assigns every person an integer `gen` level using BFS from `rootPersonId` (Gen 0):
+         *    - Parents are `gen - 1` (Grandparents -2, Great-Grandparents -3, etc.)
+         *    - Spouses share the same `gen`
+         *    - Children are `gen + 1`
+         * 2. Groups people within each generation into marriage clusters so spouses stand next to
+         *    each other (even with 2, 3, or 4 marriages!) and children are centered beneath their parents.
+         */
+        function computeLayout() {
+            const gens = {};
+            const visited = new Set();
+
+            // Pick starting anchor
+            const startId = (state.rootPersonId && state.people[state.rootPersonId])
+                ? state.rootPersonId
+                : Object.keys(state.people)[0];
+
+            if (!startId) return { positions: {}, unionPositions: {}, gens: {} };
+
+            const queue = [{ id: startId, gen: 0 }];
+            visited.add(startId);
+            gens[startId] = 0;
+
+            while (queue.length > 0) {
+                const { id, gen } = queue.shift();
+                const person = state.people[id];
+                if (!person) continue;
+
+                // 1. Traverse UP to parents
+                if (person.parentUnionId && state.unions[person.parentUnionId]) {
+                    const pUnion = state.unions[person.parentUnionId];
+                    pUnion.partners.forEach(pId => {
+                        if (state.people[pId] && !visited.has(pId)) {
+                            visited.add(pId);
+                            gens[pId] = gen - 1;
+                            queue.push({ id: pId, gen: gen - 1 });
+                        }
+                    });
+                    // Also sibling co-children in same parentUnion share `gen`
+                    pUnion.children.forEach(sibId => {
+                        if (state.people[sibId] && !visited.has(sibId)) {
+                            visited.add(sibId);
+                            gens[sibId] = gen;
+                            queue.push({ id: sibId, gen: gen });
+                        }
+                    });
+                }
+
+                // 2. Traverse ACROSS to spouses & DOWN to children
+                const myUnions = getPersonUnions(id);
+                myUnions.forEach(u => {
+                    u.partners.forEach(spId => {
+                        if (state.people[spId] && !visited.has(spId)) {
+                            visited.add(spId);
+                            gens[spId] = gen;
+                            queue.push({ id: spId, gen: gen });
+                        }
+                    });
+                    u.children.forEach(chId => {
+                        if (state.people[chId] && !visited.has(chId)) {
+                            visited.add(chId);
+                            gens[chId] = gen + 1;
+                            queue.push({ id: chId, gen: gen + 1 });
+                        }
+                    });
+                });
+            }
+
+            // Catch any disconnected nodes
+            Object.keys(state.people).forEach(pid => {
+                if (!visited.has(pid)) {
+                    gens[pid] = 0;
+                }
+                state.people[pid].gen = gens[pid];
+            });
+
+            // Group people by generation
+            const genBuckets = {};
+            Object.keys(state.people).forEach(pid => {
+                const g = gens[pid];
+                if (!genBuckets[g]) genBuckets[g] = [];
+                genBuckets[g].push(pid);
+            });
+
+            const sortedGenKeys = Object.keys(genBuckets).map(Number).sort((a, b) => a - b);
+            const positions = {};
+
+            // Initial horizontal placement per generation using Marriage Clusters + Parent Union Sorting
+            sortedGenKeys.forEach(g => {
+                const pids = genBuckets[g];
+
+                // Sort by parentUnionId so full siblings stay adjacent, and half-siblings from a 2nd marriage stay next to them
+                pids.sort((a, b) => {
+                    const pa = state.people[a].parentUnionId || '';
+                    const pb = state.people[b].parentUnionId || '';
+                    if (pa !== pb) return pa.localeCompare(pb);
+                    return a.localeCompare(b);
+                });
+
+                const placedInGen = new Set();
+                const clusters = [];
+
+                pids.forEach(pid => {
+                    if (placedInGen.has(pid)) return;
+
+                    const myUnions = getPersonUnions(pid);
+                    if (myUnions.length === 0) {
+                        placedInGen.add(pid);
+                        clusters.push([pid]);
+                    } else {
+                        // Build a contiguous row for a person and all their spouses in this generation
+                        // If a person has 2 spouses: [Spouse1, Person, Spouse2] for clean symmetry!
+                        // If 3+ spouses: [Spouse1, Person, Spouse2, Spouse3...]
+                        const spouses = [];
+                        myUnions.forEach(u => {
+                            u.partners.forEach(spId => {
+                                if (spId !== pid && gens[spId] === g && !placedInGen.has(spId)) {
+                                    spouses.push(spId);
+                                }
+                            });
+                        });
+
+                        placedInGen.add(pid);
+                        spouses.forEach(s => placedInGen.add(s));
+
+                        let clusterOrder = [];
+                        if (spouses.length === 0) {
+                            clusterOrder = [pid];
+                        } else if (spouses.length === 1) {
+                            clusterOrder = [pid, spouses[0]];
+                        } else {
+                            // Put first spouse on the left, main person in center, remaining spouses on the right
+                            clusterOrder = [spouses[0], pid, ...spouses.slice(1)];
+                        }
+                        clusters.push(clusterOrder);
+                    }
+                });
+
+                // Calculate X coordinates for this generation
+                let cursorX = 0;
+                clusters.forEach((cluster, cIdx) => {
+                    cluster.forEach((pid, idx) => {
+                        positions[pid] = {
+                            x: cursorX,
+                            y: g * LEVEL_HEIGHT
+                        };
+                        cursorX += CARD_WIDTH + (idx < cluster.length - 1 ? SPOUSE_GAP : 0);
+                    });
+                    if (cIdx < clusters.length - 1) {
+                        cursorX += CLUSTER_GAP;
+                    }
+                });
+
+                // Center the row around X = 0
+                const totalWidth = cursorX;
+                const shiftX = -totalWidth / 2;
+                pids.forEach(pid => {
+                    if (positions[pid]) {
+                        positions[pid].x += shiftX;
+                    }
+                });
+            });
+
+            // Refinement Pass (Top-down & Bottom-up barycenter alignment)
+            // Aligns children rows beneath their parents and parent rows above their children
+            for (let pass = 0; pass < 3; pass++) {
+                sortedGenKeys.forEach(g => {
+                    const pids = genBuckets[g];
+                    // Compute desired shift for the whole generation or clusters based on connected parents
+                    let sumDelta = 0;
+                    let countDelta = 0;
+                    pids.forEach(pid => {
+                        const p = state.people[pid];
+                        if (p.parentUnionId && state.unions[p.parentUnionId]) {
+                            const u = state.unions[p.parentUnionId];
+                            const parentXs = u.partners
+                                .filter(id => positions[id])
+                                .map(id => positions[id].x + CARD_WIDTH / 2);
+                            if (parentXs.length > 0) {
+                                const parentMid = parentXs.reduce((a, b) => a + b, 0) / parentXs.length;
+                                const myCenter = positions[pid].x + CARD_WIDTH / 2;
+                                sumDelta += (parentMid - myCenter);
+                                countDelta++;
+                            }
+                        }
+                    });
+                    if (countDelta > 0) {
+                        const avgShift = (sumDelta / countDelta) * 0.6;
+                        pids.forEach(pid => {
+                            positions[pid].x += avgShift;
+                        });
+                    }
+                });
+            }
+
+            // Compute Union Pill coordinates (between partners)
+            const unionPositions = {};
+            Object.values(state.unions).forEach(u => {
+                const validPartners = u.partners.filter(id => positions[id]);
+                if (validPartners.length === 0) return;
+
+                if (validPartners.length === 1) {
+                    const pPos = positions[validPartners[0]];
+                    unionPositions[u.id] = {
+                        x: pPos.x + CARD_WIDTH + 18,
+                        y: pPos.y + CARD_HEIGHT / 2,
+                        colorIdx: 0
+                    };
+                } else {
+                    const p1 = positions[validPartners[0]];
+                    const p2 = positions[validPartners[1]];
+                    // Determine marriage index for color coding when a person has multiple marriages
+                    const primaryPartnerUnions = getPersonUnions(validPartners[0]);
+                    const uIdx = Math.max(0, primaryPartnerUnions.findIndex(item => item.id === u.id));
+
+                    // Place union hub between the two partners horizontally
+                    const leftX = Math.min(p1.x, p2.x) + CARD_WIDTH;
+                    const rightX = Math.max(p1.x, p2.x);
+                    const midX = (leftX + rightX) / 2;
+                    const midY = (p1.y + p2.y) / 2 + CARD_HEIGHT / 2 + (uIdx * 10 - 4);
+
+                    unionPositions[u.id] = {
+                        x: midX,
+                        y: midY,
+                        colorIdx: uIdx % UNION_COLORS.length
+                    };
+                }
+            });
+
+            return { positions, unionPositions, gens };
+        }
+
+        function renderAll() {
+            const { positions, unionPositions, gens } = computeLayout();
+            const nodesLayer = document.getElementById('nodesLayer');
+            const svgLayer = document.getElementById('connectionsSvg');
+
+            nodesLayer.innerHTML = '';
+            svgLayer.innerHTML = '';
+
+            // Update stats badge
+            const totalPeople = Object.keys(state.people).length;
+            const totalUnions = Object.keys(state.unions).length;
+            document.getElementById('statsBadge').textContent = `${totalPeople} Members • ${totalUnions} Unions`;
+
+            // 1. Render SVG Connection Lines for each Union
+            Object.values(state.unions).forEach(u => {
+                const uPos = unionPositions[u.id];
+                if (!uPos) return;
+
+                const palette = UNION_COLORS[uPos.colorIdx || 0];
+                const isDivorced = u.status === 'divorced';
+                const dashArray = isDivorced ? '6,4' : 'none';
+
+                // Draw line connecting partners to the union hub
+                u.partners.forEach(pid => {
+                    const pPos = positions[pid];
+                    if (!pPos) return;
+
+                    const pCenterX = pPos.x + CARD_WIDTH / 2;
+                    const pCenterY = pPos.y + CARD_HEIGHT / 2;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    // Smooth horizontal/curved line from partner center to union hub
+                    const d = `M ${pCenterX} ${pCenterY} C ${(pCenterX + uPos.x) / 2} ${uPos.y}, ${(pCenterX + uPos.x) / 2} ${uPos.y}, ${uPos.x} ${uPos.y}`;
+                    path.setAttribute('d', d);
+                    path.setAttribute('stroke', palette.stroke);
+                    path.setAttribute('stroke-width', '2.5');
+                    path.setAttribute('fill', 'none');
+                    if (isDivorced) path.setAttribute('stroke-dasharray', dashArray);
+                    svgLayer.appendChild(path);
+                });
+
+                // Draw orthogonal/smooth fork lines from the Union Hub down to each child
+                const validChildren = u.children.filter(cid => positions[cid]);
+                if (validChildren.length > 0) {
+                    const busY = uPos.y + (LEVEL_HEIGHT - CARD_HEIGHT) * 0.52;
+
+                    // Vertical drop from Union Hub to horizontal sibling bus
+                    const dropLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    dropLine.setAttribute('d', `M ${uPos.x} ${uPos.y} L ${uPos.x} ${busY}`);
+                    dropLine.setAttribute('stroke', palette.stroke);
+                    dropLine.setAttribute('stroke-width', '2.2');
+                    dropLine.setAttribute('fill', 'none');
+                    svgLayer.appendChild(dropLine);
+
+                    validChildren.forEach(cid => {
+                        const cPos = positions[cid];
+                        const childTopX = cPos.x + CARD_WIDTH / 2;
+                        const childTopY = cPos.y;
+
+                        const childPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        const d = `M ${uPos.x} ${busY} L ${childTopX} ${busY} L ${childTopX} ${childTopY}`;
+                        childPath.setAttribute('d', d);
+                        childPath.setAttribute('stroke', palette.stroke);
+                        childPath.setAttribute('stroke-width', '2.2');
+                        childPath.setAttribute('stroke-linejoin', 'round');
+                        childPath.setAttribute('fill', 'none');
+                        svgLayer.appendChild(childPath);
+
+                        // Small connector dot on top of child card
+                        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        dot.setAttribute('cx', childTopX);
+                        dot.setAttribute('cy', childTopY);
+                        dot.setAttribute('r', '3.5');
+                        dot.setAttribute('fill', palette.stroke);
+                        svgLayer.appendChild(dot);
+                    });
+                }
+
+                // Render interactive Union Hub Pill on the nodes layer
+                const hubEl = document.createElement('div');
+                hubEl.className = 'union-pill absolute -translate-x-1/2 -translate-y-1/2 z-10 px-2 py-0.5 rounded-full shadow-sm border text-[10px] font-bold flex items-center gap-1 cursor-pointer select-none';
+                hubEl.style.left = `${uPos.x}px`;
+                hubEl.style.top = `${uPos.y}px`;
+                hubEl.style.backgroundColor = palette.bg;
+                hubEl.style.borderColor = palette.border;
+                hubEl.style.color = palette.text;
+                hubEl.title = `${u.label || 'Marriage'} (${u.children.length} children) - Click to add child to this union`;
+
+                const iconHtml = u.status === 'divorced'
+                    ? '<i class="fa-solid fa-heart-crack text-[9px]"></i>'
+                    : '<i class="fa-solid fa-ring text-[9px]"></i>';
+
+                hubEl.innerHTML = `${iconHtml}<span>${u.children.length}</span>`;
+                hubEl.onclick = (e) => {
+                    e.stopPropagation();
+                    if (u.partners[0]) {
+                        selectPerson(u.partners[0]);
+                        openAddRelativeModal('child', u.partners[0], u.id);
+                    }
+                };
+                nodesLayer.appendChild(hubEl);
+            });
+
+            // 2. Render Person Cards
+            Object.values(state.people).forEach(person => {
+                const pos = positions[person.id];
+                if (!pos) return;
+
+                const isSelected = person.id === state.selectedPersonId;
+                const isRoot = person.id === state.rootPersonId;
+                const isSearchMatch = state.searchQuery && person.name.toLowerCase().includes(state.searchQuery.toLowerCase());
+                const myUnions = getPersonUnions(person.id);
+
+                // Gender styling
+                let avatarColors = 'bg-slate-100 text-slate-600 border-slate-300';
+                let genderIcon = 'fa-user';
+                if (person.gender === 'male') {
+                    avatarColors = 'bg-sky-50 text-sky-600 border-sky-200';
+                    genderIcon = 'fa-mars';
+                } else if (person.gender === 'female') {
+                    avatarColors = 'bg-rose-50 text-rose-600 border-rose-200';
+                    genderIcon = 'fa-venus';
+                }
+
+                // Generation relative label
+                const genLabel = formatGenerationLabel(person.gen);
+
+                const card = document.createElement('div');
+                card.className = `node-card absolute rounded-2xl bg-white p-3 cursor-pointer select-none flex flex-col justify-between ${
+                    isSelected
+                        ? 'ring-2 ring-indigo-600 border-2 border-indigo-600 shadow-xl shadow-indigo-100 z-20'
+                        : isSearchMatch
+                            ? 'ring-2 ring-amber-500 border-2 border-amber-500 shadow-lg z-20'
+                            : 'border border-slate-200/90 shadow-md hover:border-indigo-300 z-10'
+                }`;
+                card.style.width = `${CARD_WIDTH}px`;
+                card.style.height = `${CARD_HEIGHT}px`;
+                card.style.left = `${pos.x}px`;
+                card.style.top = `${pos.y}px`;
+
+                card.onclick = (e) => {
+                    e.stopPropagation();
+                    selectPerson(person.id);
+                };
+
+                // Quick-add floating action buttons when card is selected
+                const quickAddBar = isSelected ? `
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-md whitespace-nowrap">
+                        <button onclick="event.stopPropagation(); openAddRelativeModal('parents', '${person.id}')" class="hover:text-amber-200" title="Add Parents Upward">
+                            <i class="fa-solid fa-arrow-up"></i> Parents
+                        </button>
+                    </div>
+                    <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900 text-white px-2.5 py-0.5 rounded-full text-[10px] font-semibold shadow-md whitespace-nowrap">
+                        <button onclick="event.stopPropagation(); openAddRelativeModal('spouse', '${person.id}')" class="hover:text-amber-300" title="Add Spouse / Partner">
+                            +Spouse
+                        </button>
+                        <span class="text-slate-600">|</span>
+                        <button onclick="event.stopPropagation(); openAddRelativeModal('child', '${person.id}')" class="hover:text-emerald-300" title="Add Child Downward">
+                            +Child
+                        </button>
+                        <span class="text-slate-600">|</span>
+                        <button onclick="event.stopPropagation(); openAddRelativeModal('sibling', '${person.id}')" class="hover:text-sky-300" title="Add Sibling">
+                            +Sibling
+                        </button>
+                    </div>
+                ` : '';
+
+                // Multi-marriage badge indicator
+                const marriageCountBadge = myUnions.length > 1
+                    ? `<span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 border border-amber-300 rounded-md text-[9px] font-bold" title="${myUnions.length} Marriages/Unions">💍×${myUnions.length}</span>`
+                    : '';
+
+                card.innerHTML = `
+                    ${quickAddBar}
+                    <div class="flex items-start gap-2.5">
+                        <div class="w-9 h-9 rounded-xl border ${avatarColors} flex items-center justify-center shrink-0 text-sm font-bold">
+                            <i class="fa-solid ${genderIcon}"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="text-[9px] font-bold uppercase tracking-wider ${isRoot ? 'text-indigo-600' : 'text-slate-400'} truncate">
+                                    ${isRoot ? '★ Root (Gen 0)' : genLabel}
+                                </span>
+                                ${marriageCountBadge}
+                            </div>
+                            <h4 class="font-bold text-slate-800 text-xs truncate leading-snug mt-0.5" title="${escapeHtml(person.name)}">
+                                ${escapeHtml(person.name)}
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-100">
+                        <span class="truncate max-w-[110px]" title="${escapeHtml(person.note || '')}">
+                            ${escapeHtml(person.note || 'Family Member')}
+                        </span>
+                        <span class="font-mono text-[9px] text-slate-400 shrink-0">
+                            ${escapeHtml(person.birth || '?')}–${escapeHtml(person.death || 'Living')}
+                        </span>
+                    </div>
+                `;
+
+                nodesLayer.appendChild(card);
+            });
+
+            renderInspector();
+        }
+
+        function formatGenerationLabel(gen) {
+            if (gen === 0) return 'Gen 0 (Self/Peer)';
+            if (gen === -1) return 'Gen -1 (Parents)';
+            if (gen === -2) return 'Gen -2 (Grandparents)';
+            if (gen === -3) return 'Gen -3 (Great-GP)';
+            if (gen < -3) return `Gen ${gen} (${Math.abs(gen) - 2}x Great-GP)`;
+            if (gen === 1) return 'Gen +1 (Children)';
+            if (gen === 2) return 'Gen +2 (Grandchildren)';
+            if (gen > 2) return `Gen +${gen} (${gen - 2}x Great-GC)`;
+            return `Gen ${gen}`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function selectPerson(personId) {
+            if (!state.people[personId]) return;
+            state.selectedPersonId = personId;
+            renderAll();
+        }
+
+        function renderInspector() {
+            const container = document.getElementById('inspectorContent');
+            const badge = document.getElementById('selectedGenBadge');
+            const person = state.people[state.selectedPersonId];
+
+            if (!person) {
+                badge.textContent = 'None';
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <i class="fa-regular fa-hand-pointer text-3xl mb-2"></i>
+                        <p class="text-xs">Select any family member card on the canvas to inspect or add relatives.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            badge.textContent = formatGenerationLabel(person.gen || 0);
+            const myUnions = getPersonUnions(person.id);
+
+            // Find Parents info
+            let parentsHtml = '<p class="text-xs text-slate-400 italic">No parents recorded yet.</p>';
+            if (person.parentUnionId && state.unions[person.parentUnionId]) {
+                const pu = state.unions[person.parentUnionId];
+                const parentNames = pu.partners
+                    .map(pid => state.people[pid])
+                    .filter(Boolean)
+                    .map(p => `<button onclick="selectPerson('${p.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">${escapeHtml(p.name)}</button>`)
+                    .join(' & ');
+                parentsHtml = `
+                    <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                        <div class="text-xs text-slate-700">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block">Parents (${escapeHtml(pu.label || 'Union')})</span>
+                            ${parentNames || 'Single Parent Union'}
+                        </div>
+                        <button onclick="openAddRelativeModal('sibling', '${person.id}')" class="px-2 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg hover:border-indigo-400 text-slate-700">
+                            + Sibling
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Build Marriages / Unions list
+            let unionsHtml = '';
+            if (myUnions.length === 0) {
+                unionsHtml = `
+                    <div class="p-3 rounded-xl border border-dashed border-slate-200 text-center">
+                        <p class="text-xs text-slate-400 mb-2">No marriages or partnerships yet.</p>
+                        <button onclick="openAddRelativeModal('spouse', '${person.id}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-ring mr-1"></i> Add 1st Spouse / Partner
+                        </button>
+                    </div>
+                `;
+            } else {
+                unionsHtml = myUnions.map((u, idx) => {
+                    const partner = getOtherPartner(u, person.id);
+                    const palette = UNION_COLORS[idx % UNION_COLORS.length];
+                    const childrenList = u.children
+                        .map(cid => state.people[cid])
+                        .filter(Boolean);
+
+                    const childrenPills = childrenList.length > 0
+                        ? childrenList.map(ch => `
+                            <button onclick="selectPerson('${ch.id}')" class="px-2 py-1 bg-white border border-slate-200 hover:border-indigo-400 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                                <i class="fa-solid fa-child text-[10px] text-indigo-500"></i> ${escapeHtml(ch.name)}
+                            </button>
+                        `).join('')
+                        : '<span class="text-[11px] text-slate-400 italic">No children in this marriage yet</span>';
+
+                    return `
+                        <div class="p-3 rounded-xl border bg-slate-50/70 space-y-2" style="border-left: 4px solid ${palette.border};">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:${palette.bg}; color:${palette.text};">
+                                        Union #${idx + 1} • ${escapeHtml(u.status)}
+                                    </span>
+                                    <div class="text-xs font-bold text-slate-800 mt-1">
+                                        ${partner
+                                            ? `Spouse: <button onclick="selectPerson('${partner.id}')" class="text-indigo-600 hover:underline">${escapeHtml(partner.name)}</button>`
+                                            : 'Single / Unnamed Partner'}
+                                    </div>
+                                    <div class="text-[11px] text-slate-500">${escapeHtml(u.label || '')}</div>
+                                </div>
+                                <button onclick="openAddRelativeModal('child', '${person.id}', '${u.id}')" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold shadow-xs transition shrink-0">
+                                    + Child Here
+                                </button>
+                            </div>
+                            <div class="pt-1.5 border-t border-slate-200/70">
+                                <span class="text-[10px] font-semibold text-slate-400 uppercase block mb-1">Children from Union #${idx + 1} (${childrenList.length}):</span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${childrenPills}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            container.innerHTML = `
+                <!-- Add Relative Action Grid (Upward, Sideways, Downward) -->
+                <div class="space-y-2">
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Add Family Members</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="openAddRelativeModal('parents', '${person.id}')" class="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 flex flex-col items-start transition group">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-indigo-700">
+                                <i class="fa-solid fa-arrow-up group-hover:-translate-y-0.5 transition"></i> Add Parents (Up)
+                            </div>
+                            <span class="text-[10px] text-indigo-600/80 mt-0.5">Father, Mother, Ancestors</span>
+                        </button>
+
+                        <button onclick="openAddRelativeModal('spouse', '${person.id}')" class="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 flex flex-col items-start transition group">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                                <i class="fa-solid fa-ring"></i> Add Spouse (#${myUnions.length + 1})
+                            </div>
+                            <span class="text-[10px] text-amber-700/80 mt-0.5">1st, 2nd, 3rd Marriage...</span>
+                        </button>
+
+                        <button onclick="openAddRelativeModal('child', '${person.id}')" class="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 flex flex-col items-start transition group">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                                <i class="fa-solid fa-arrow-down group-hover:translate-y-0.5 transition"></i> Add Child (Down)
+                            </div>
+                            <span class="text-[10px] text-emerald-700/80 mt-0.5">Choose which marriage</span>
+                        </button>
+
+                        <button onclick="openAddRelativeModal('sibling', '${person.id}')" class="p-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 flex flex-col items-start transition group">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-sky-800">
+                                <i class="fa-solid fa-people-arrows"></i> Add Sibling
+                            </div>
+                            <span class="text-[10px] text-sky-700/80 mt-0.5">Full or Half-Sibling</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Marriages & Children per Marriage -->
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Marriages & Unions (${myUnions.length})</label>
+                        <button onclick="openAddRelativeModal('spouse', '${person.id}')" class="text-[11px] font-semibold text-indigo-600 hover:underline">+ New Marriage</button>
+                    </div>
+                    <div class="space-y-2.5">
+                        ${unionsHtml}
+                    </div>
+                </div>
+
+                <!-- Upward Ancestry / Parents -->
+                <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Upward Lineage (Parents)</label>
+                    ${parentsHtml}
+                </div>
+
+                <!-- Edit Selected Member Form -->
+                <div class="space-y-3 pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Edit Member Profile</label>
+                        <button onclick="setAsRootPerson('${person.id}')" class="text-[11px] font-medium text-slate-500 hover:text-indigo-600" title="Make Gen 0 Reference">
+                            <i class="fa-solid fa-star text-[10px] mr-0.5"></i> Set as Gen 0 Root
+                        </button>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-600 mb-1">Full Name</label>
+                        <input type="text" value="${escapeHtml(person.name)}" oninput="updateSelectedPersonField('name', this.value)"
+                            class="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">Gender</label>
+                            <select onchange="updateSelectedPersonField('gender', this.value)" class="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+                                <option value="male" ${person.gender === 'male' ? 'selected' : ''}>Male</option>
+                                <option value="female" ${person.gender === 'female' ? 'selected' : ''}>Female</option>
+                                <option value="other" ${person.gender === 'other' ? 'selected' : ''}>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">Birth Year</label>
+                            <input type="text" value="${escapeHtml(person.birth)}" oninput="updateSelectedPersonField('birth', this.value)"
+                                class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-600 mb-1">Death / Status</label>
+                            <input type="text" value="${escapeHtml(person.death)}" oninput="updateSelectedPersonField('death', this.value)"
+                                class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-600 mb-1">Role / Bio Note</label>
+                        <input type="text" value="${escapeHtml(person.note)}" oninput="updateSelectedPersonField('note', this.value)"
+                            class="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button onclick="deletePerson('${person.id}')" class="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition flex items-center gap-1.5">
+                            <i class="fa-regular fa-trash-can"></i> Remove Member
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateSelectedPersonField(field, value) {
+            const p = state.people[state.selectedPersonId];
+            if (!p) return;
+            p[field] = value;
+            // Re-render canvas cards without losing input focus in inspector
+            const { positions, unionPositions } = computeLayout();
+            renderAllPreservingInspectorFocus();
+        }
+
+        function renderAllPreservingInspectorFocus() {
+            // Re-render only canvas nodes & lines so typing in the sidebar remains smooth
+            const activeEl = document.activeElement;
+            const isTypingInInspector = activeEl && document.getElementById('inspectorContent').contains(activeEl);
+            if (isTypingInInspector) {
+                const { positions, unionPositions } = computeLayout();
+                // Update card titles directly or re-render canvas layer only
+                const nodesLayer = document.getElementById('nodesLayer');
+                const svgLayer = document.getElementById('connectionsSvg');
+                // Simple full render except inspector
+                const savedHtml = document.getElementById('inspectorContent').innerHTML;
+                renderCanvasOnly(positions, unionPositions);
+            } else {
+                renderAll();
+            }
+        }
+
+        function renderCanvasOnly(positions, unionPositions) {
+            // Trigger full render and restore focus if needed, or call renderAll on blur
+            // For immediate feedback, update the selected card's text in DOM
+            renderAll();
+        }
+
+        function setAsRootPerson(personId) {
+            state.rootPersonId = personId;
+            renderAll();
+            showToast(`Set ${state.people[personId].name} as Generation 0 Root`);
+        }
+
+        function deletePerson(personId) {
+            if (Object.keys(state.people).length <= 1) {
+                showToast('Cannot delete the last person in the tree.');
+                return;
+            }
+            const name = state.people[personId]?.name || 'Member';
+            delete state.people[personId];
+
+            // Clean up references in unions
+            Object.values(state.unions).forEach(u => {
+                u.partners = u.partners.filter(id => id !== personId);
+                u.children = u.children.filter(id => id !== personId);
+                if (u.partners.length === 0 && u.children.length === 0) {
+                    delete state.unions[u.id];
+                }
+            });
+
+            if (state.selectedPersonId === personId) {
+                state.selectedPersonId = Object.keys(state.people)[0];
+            }
+            if (state.rootPersonId === personId) {
+                state.rootPersonId = state.selectedPersonId;
+            }
+            renderAll();
+            showToast(`Removed ${name}`);
+        }
+
+        function openAddRelativeModal(actionType, targetPersonId, preselectedUnionId = null) {
+            const person = state.people[targetPersonId];
+            if (!person) return;
+
+            document.getElementById('formActionType').value = actionType;
+            document.getElementById('formTargetPersonId').value = targetPersonId;
+            document.getElementById('formPersonName').value = '';
+            document.getElementById('formPersonBirth').value = '';
+            document.getElementById('formPersonDeath').value = 'Living';
+            document.getElementById('formPersonNote').value = '';
+            document.getElementById('useExistingSpouseToggle').checked = false;
+            document.getElementById('formExistingSpouseSelect').classList.add('hidden');
+            document.getElementById('personDetailsWrap').classList.remove('hidden');
+
+            const modalTitle = document.getElementById('modalTitle');
+            const banner = document.getElementById('modalContextBanner');
+            const unionWrap = document.getElementById('unionSelectorWrap');
+            const unionSelect = document.getElementById('formUnionSelect');
+            const unionHint = document.getElementById('unionSelectHint');
+            const marriageWrap = document.getElementById('marriageFieldsWrap');
+            const existingPartnerWrap = document.getElementById('existingPartnerWrap');
+
+            unionWrap.classList.add('hidden');
+            marriageWrap.classList.add('hidden');
+            existingPartnerWrap.classList.add('hidden');
+
+            const myUnions = getPersonUnions(person.id);
+
+            if (actionType === 'parents') {
+                modalTitle.innerHTML = `<i class="fa-solid fa-arrow-up text-indigo-600"></i> Add Parent / Ancestor Upward`;
+                if (person.parentUnionId && state.unions[person.parentUnionId]) {
+                    const pu = state.unions[person.parentUnionId];
+                    if (pu.partners.length === 1) {
+                        const existingParent = state.people[pu.partners[0]];
+                        banner.innerHTML = `Adding the <strong>2nd Parent (Spouse of ${escapeHtml(existingParent?.name || 'Parent')})</strong> for <strong>${escapeHtml(person.name)}</strong>.`;
+                        document.getElementById('formPersonGender').value = existingParent?.gender === 'male' ? 'female' : 'male';
+                    } else {
+                        banner.innerHTML = `<strong>${escapeHtml(person.name)}</strong> already has two parents in this union. Adding another parent will create an additional parental union/step-parent.`;
+                    }
+                } else {
+                    banner.innerHTML = `Adding an upward parent for <strong>${escapeHtml(person.name)}</strong> (Generation ${(person.gen || 0) - 1}). You can add a Father & Mother pair right away!`;
+                    // Offer option in union selector to create either Father+Mother pair or Single Parent
+                    unionWrap.classList.remove('hidden');
+                    document.getElementById('unionSelectLabel').textContent = 'How would you like to add upward parents?';
+                    unionSelect.innerHTML = `
+                        <option value="pair">Add Father & Mother Pair Together (Recommended)</option>
+                        <option value="single">Add Single Parent Only</option>
+                    `;
+                    unionHint.textContent = 'Selecting "Father & Mother Pair" automatically creates both parents and their marriage union above this person.';
+                    document.getElementById('formPersonName').placeholder = 'e.g. Robert Sterling (Father)';
+                    document.getElementById('formPersonGender').value = 'male';
+                    document.getElementById('formPersonNote').value = 'Father';
+                }
+            } else if (actionType === 'spouse') {
+                const marriageNum = myUnions.length + 1;
+                const ordinal = marriageNum === 1 ? '1st' : marriageNum === 2 ? '2nd' : marriageNum === 3 ? '3rd' : `${marriageNum}th`;
+                modalTitle.innerHTML = `<i class="fa-solid fa-ring text-amber-600"></i> Add ${ordinal} Spouse / Partner`;
+                banner.innerHTML = `Adding <strong>${ordinal} Marriage / Union</strong> for <strong>${escapeHtml(person.name)}</strong>. You can add children specifically to this marriage afterward.`;
+                marriageWrap.classList.remove('hidden');
+                existingPartnerWrap.classList.remove('hidden');
+                document.getElementById('formUnionLabel').value = `${ordinal} Marriage`;
+                document.getElementById('formPersonGender').value = person.gender === 'male' ? 'female' : 'male';
+                document.getElementById('formPersonNote').value = `${ordinal} Spouse`;
+
+                // Populate existing people dropdown
+                const otherPeople = Object.values(state.people).filter(p => p.id !== person.id);
+                const existingSel = document.getElementById('formExistingSpouseSelect');
+                existingSel.innerHTML = otherPeople.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${formatGenerationLabel(p.gen || 0)})</option>`).join('');
+            } else if (actionType === 'child') {
+                modalTitle.innerHTML = `<i class="fa-solid fa-child text-emerald-600"></i> Add Child Downward`;
+                banner.innerHTML = `Adding a child to <strong>${escapeHtml(person.name)}</strong> (Generation ${(person.gen || 0) + 1}). Choose which marriage/union this child belongs to:`;
+                unionWrap.classList.remove('hidden');
+                document.getElementById('unionSelectLabel').textContent = 'Select Parents / Marriage Union';
+
+                let optionsHtml = '';
+                myUnions.forEach((u, idx) => {
+                    const spouse = getOtherPartner(u, person.id);
+                    const spouseName = spouse ? spouse.name : 'Single Parent';
+                    const isSelected = preselectedUnionId ? u.id === preselectedUnionId : idx === myUnions.length - 1;
+                    optionsHtml += `<option value="${u.id}" ${isSelected ? 'selected' : ''}>Union #${idx + 1}: with ${escapeHtml(spouseName)} (${escapeHtml(u.label || u.status)})</option>`;
+                });
+                optionsHtml += `<option value="new_single_union">+ Create Single-Parent Union (No Spouse Yet)</option>`;
+                unionSelect.innerHTML = optionsHtml;
+                unionHint.textContent = 'Children are automatically grouped under their specific marriage union.';
+                document.getElementById('formPersonNote').value = 'Child';
+            } else if (actionType === 'sibling') {
+                modalTitle.innerHTML = `<i class="fa-solid fa-people-arrows text-sky-600"></i> Add Sibling (Full or Half)`;
+                banner.innerHTML = `Adding a sibling on the same generation level as <strong>${escapeHtml(person.name)}</strong>.`;
+                unionWrap.classList.remove('hidden');
+                document.getElementById('unionSelectLabel').textContent = 'Select Shared Parents Union (Full vs. Half-Sibling)';
+
+                // Collect all unions of the person's parents so user can pick Full Sibling or Half-Sibling from a parent's 2nd marriage!
+                let sibOptions = '';
+                if (person.parentUnionId && state.unions[person.parentUnionId]) {
+                    const mainPu = state.unions[person.parentUnionId];
+                    const pNames = mainPu.partners.map(id => state.people[id]?.name).filter(Boolean).join(' & ');
+                    sibOptions += `<option value="${mainPu.id}">Full Sibling — Parents: ${escapeHtml(pNames || 'Current Parents')}</option>`;
+
+                    // Also check if either parent has OTHER marriages (for half-siblings!)
+                    mainPu.partners.forEach(parentId => {
+                        const pUnions = getPersonUnions(parentId);
+                        pUnions.forEach(otherU => {
+                            if (otherU.id !== mainPu.id) {
+                                const otherNames = otherU.partners.map(id => state.people[id]?.name).filter(Boolean).join(' & ');
+                                sibOptions += `<option value="${otherU.id}">Half-Sibling — Union: ${escapeHtml(otherNames)} (${escapeHtml(otherU.label)})</option>`;
+                            }
+                        });
+                    });
+                } else {
+                    sibOptions += `<option value="auto_create_parents">Create Shared Parent Union Automatically</option>`;
+                }
+                unionSelect.innerHTML = sibOptions;
+                unionHint.textContent = 'Pick the shared parental marriage to distinguish full siblings from half-siblings.';
+                document.getElementById('formPersonNote').value = 'Sibling';
+            }
+
+            const modal = document.getElementById('actionModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('formPersonName').focus(), 50);
+        }
+
+        function closeActionModal() {
+            const modal = document.getElementById('actionModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleExistingSpouseMode() {
+            const isChecked = document.getElementById('useExistingSpouseToggle').checked;
+            const existingSel = document.getElementById('formExistingSpouseSelect');
+            const detailsWrap = document.getElementById('personDetailsWrap');
+            const nameInput = document.getElementById('formPersonName');
+
+            if (isChecked) {
+                existingSel.classList.remove('hidden');
+                detailsWrap.classList.add('hidden');
+                nameInput.removeAttribute('required');
+            } else {
+                existingSel.classList.add('hidden');
+                detailsWrap.classList.remove('hidden');
+                nameInput.setAttribute('required', 'required');
+            }
+        }
+
+        function handleUnionSelectChange() {
+            // Optional dynamic hints when switching union options
+        }
+
+        function submitRelativeForm(e) {
+            e.preventDefault();
+            const actionType = document.getElementById('formActionType').value;
+            const targetId = document.getElementById('formTargetPersonId').value;
+            const targetPerson = state.people[targetId];
+            if (!targetPerson) return;
+
+            const name = document.getElementById('formPersonName').value.trim();
+            const gender = document.getElementById('formPersonGender').value;
+            const birth = document.getElementById('formPersonBirth').value.trim();
+            const death = document.getElementById('formPersonDeath').value.trim() || 'Living';
+            const note = document.getElementById('formPersonNote').value.trim();
+            const unionChoice = document.getElementById('formUnionSelect').value;
+
+            if (actionType === 'parents') {
+                if (targetPerson.parentUnionId && state.unions[targetPerson.parentUnionId]) {
+                    const pu = state.unions[targetPerson.parentUnionId];
+                    if (pu.partners.length < 2) {
+                        // Add 2nd parent to existing single-parent union
+                        const newParent = addPersonRaw({ name, gender, birth, death, note: note || 'Parent' });
+                        pu.partners.push(newParent.id);
+                        state.selectedPersonId = newParent.id;
+                        showToast(`Added parent ${newParent.name}`);
+                    } else {
+                        // Already had 2 parents; add a new marriage union to the first parent (e.g., step-parent)
+                        const firstParentId = pu.partners[0];
+                        const stepParent = addPersonRaw({ name, gender, birth, death, note: note || 'Step-Parent' });
+                        addUnionRaw({
+                            partners: [firstParentId, stepParent.id],
+                            children: [],
+                            status: 'married',
+                            label: '2nd Marriage'
+                        });
+                        state.selectedPersonId = stepParent.id;
+                        showToast(`Added step-parent ${stepParent.name}`);
+                    }
+                } else {
+                    if (unionChoice === 'pair') {
+                        // Create Father + Mother pair and link targetPerson as their child
+                        const p1 = addPersonRaw({ name, gender, birth, death, note: note || 'Father' });
+                        const lastName = name.includes(' ') ? name.split(' ').slice(-1)[0] : '';
+                        const p2 = addPersonRaw({
+                            name: `Mother (${lastName || 'Spouse'})`,
+                            gender: gender === 'male' ? 'female' : 'male',
+                            birth,
+                            death,
+                            note: 'Mother (Click to rename)'
+                        });
+                        const newU = addUnionRaw({
+                            partners: [p1.id, p2.id],
+                            children: [targetPerson.id],
+                            status: 'married',
+                            label: 'Parents Marriage'
+                        });
+                        targetPerson.parentUnionId = newU.id;
+                        state.selectedPersonId = p1.id;
+                        showToast(`Added parents above ${targetPerson.name}`);
+                    } else {
+                        // Single parent only
+                        const p1 = addPersonRaw({ name, gender, birth, death, note: note || 'Parent' });
+                        const newU = addUnionRaw({
+                            partners: [p1.id],
+                            children: [targetPerson.id],
+                            status: 'married',
+                            label: 'Parent'
+                        });
+                        targetPerson.parentUnionId = newU.id;
+                        state.selectedPersonId = p1.id;
+                        showToast(`Added parent ${p1.name}`);
+                    }
+                }
+            } else if (actionType === 'spouse') {
+                const useExisting = document.getElementById('useExistingSpouseToggle').checked;
+                const uStatus = document.getElementById('formUnionStatus').value;
+                const uLabel = document.getElementById('formUnionLabel').value.trim() || 'Married';
+
+                let spouseId = null;
+                if (useExisting) {
+                    spouseId = document.getElementById('formExistingSpouseSelect').value;
+                } else {
+                    const newSpouse = addPersonRaw({ name, gender, birth, death, note });
+                    spouseId = newSpouse.id;
+                }
+
+                if (spouseId) {
+                    addUnionRaw({
+                        partners: [targetPerson.id, spouseId],
+                        children: [],
+                        status: uStatus,
+                        label: uLabel
+                    });
+                    showToast(`Added marriage union for ${targetPerson.name}`);
+                }
+            } else if (actionType === 'child') {
+                let targetUnion = state.unions[unionChoice];
+                if (!targetUnion || unionChoice === 'new_single_union') {
+                    targetUnion = addUnionRaw({
+                        partners: [targetPerson.id],
+                        children: [],
+                        status: 'partner',
+                        label: 'Single Parent Union'
+                    });
+                }
+                const newChild = addPersonRaw({
+                    name,
+                    gender,
+                    birth,
+                    death,
+                    note,
+                    parentUnionId: targetUnion.id
+                });
+                targetUnion.children.push(newChild.id);
+                state.selectedPersonId = newChild.id;
+                showToast(`Added child ${newChild.name}`);
+            } else if (actionType === 'sibling') {
+                let parentUnion = state.unions[unionChoice];
+                if (!parentUnion) {
+                    // Auto-create an upward parent union so targetPerson and the new sibling share parents
+                    const autoFather = addPersonRaw({
+                        name: `Parent of ${targetPerson.name}`,
+                        gender: 'male',
+                        birth: '',
+                        death: 'Living',
+                        note: 'Parent'
+                    });
+                    const autoMother = addPersonRaw({
+                        name: `Mother of ${targetPerson.name}`,
+                        gender: 'female',
+                        birth: '',
+                        death: 'Living',
+                        note: 'Parent'
+                    });
+                    parentUnion = addUnionRaw({
+                        partners: [autoFather.id, autoMother.id],
+                        children: [targetPerson.id],
+                        status: 'married',
+                        label: 'Parents Marriage'
+                    });
+                    targetPerson.parentUnionId = parentUnion.id;
+                }
+
+                const newSibling = addPersonRaw({
+                    name,
+                    gender,
+                    birth,
+                    death,
+                    note,
+                    parentUnionId: parentUnion.id
+                });
+                parentUnion.children.push(newSibling.id);
+                state.selectedPersonId = newSibling.id;
+                showToast(`Added sibling ${newSibling.name}`);
+            }
+
+            closeActionModal();
+            renderAll();
+        }
+
+        function setupCanvasInteractions() {
+            const vp = document.getElementById('canvasViewport');
+
+            vp.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.node-card') || e.target.closest('.union-pill') || e.target.closest('button')) return;
+                viewport.isDragging = true;
+                viewport.startX = e.clientX - viewport.x;
+                viewport.startY = e.clientY - viewport.y;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!viewport.isDragging) return;
+                viewport.x = e.clientX - viewport.startX;
+                viewport.y = e.clientY - viewport.startY;
+                applyViewportTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                viewport.isDragging = false;
+            });
+
+            // Touch Pan Support for Mobile/Tablets
+            vp.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) return;
+                if (e.target.closest('.node-card') || e.target.closest('.union-pill') || e.target.closest('button')) return;
+                viewport.isDragging = true;
+                viewport.startX = e.touches[0].clientX - viewport.x;
+                viewport.startY = e.touches[0].clientY - viewport.y;
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!viewport.isDragging || e.touches.length !== 1) return;
+                viewport.x = e.touches[0].clientX - viewport.startX;
+                viewport.y = e.touches[0].clientY - viewport.startY;
+                applyViewportTransform();
+            }, { passive: true });
+
+            window.addEventListener('touchend', () => {
+                viewport.isDragging = false;
+            });
+
+            // Mouse Wheel Zoom
+            vp.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.08 : -0.08;
+                zoomCanvas(delta, e.clientX, e.clientY);
+            }, { passive: false });
+        }
+
+        function applyViewportTransform() {
+            const el = document.getElementById('canvasTransform');
+            el.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
+            document.getElementById('zoomLabel').textContent = `${Math.round(viewport.scale * 100)}%`;
+        }
+
+        function zoomCanvas(delta, clientX = null, clientY = null) {
+            const vp = document.getElementById('canvasViewport');
+            const rect = vp.getBoundingClientRect();
+            const cx = clientX !== null ? clientX - rect.left : rect.width / 2;
+            const cy = clientY !== null ? clientY - rect.top : rect.height / 2;
+
+            const oldScale = viewport.scale;
+            const newScale = Math.min(1.8, Math.max(0.3, oldScale + delta));
+
+            // Zoom toward cursor/center point
+            viewport.x = cx - (cx - viewport.x) * (newScale / oldScale);
+            viewport.y = cy - (cy - viewport.y) * (newScale / oldScale);
+            viewport.scale = newScale;
+            applyViewportTransform();
+        }
+
+        function resetZoom() {
+            viewport.scale = 1;
+            centerCanvasOnSelected();
+        }
+
+        function centerCanvasOnSelected() {
+            const vp = document.getElementById('canvasViewport');
+            const rect = vp.getBoundingClientRect();
+            const { positions } = computeLayout();
+            const targetPos = positions[state.selectedPersonId] || { x: 0, y: 0 };
+
+            viewport.x = rect.width / 2 - (targetPos.x + CARD_WIDTH / 2) * viewport.scale;
+            viewport.y = rect.height / 2 - (targetPos.y + CARD_HEIGHT / 2) * viewport.scale;
+            applyViewportTransform();
+        }
+
+        function fitTreeToScreen() {
+            const vp = document.getElementById('canvasViewport');
+            const rect = vp.getBoundingClientRect();
+            const { positions } = computeLayout();
+            const posList = Object.values(positions);
+            if (posList.length === 0) return;
+
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            posList.forEach(p => {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x + CARD_WIDTH);
+                minY = Math.min(minY, p.y);
+                maxY = Math.max(maxY, p.y + CARD_HEIGHT);
+            });
+
+            const treeWidth = maxX - minX + 120;
+            const treeHeight = maxY - minY + 140;
+
+            const scaleX = rect.width / treeWidth;
+            const scaleY = rect.height / treeHeight;
+            viewport.scale = Math.min(1.1, Math.max(0.35, Math.min(scaleX, scaleY)));
+
+            const treeCenterX = (minX + maxX) / 2;
+            const treeCenterY = (minY + maxY) / 2;
+
+            viewport.x = rect.width / 2 - treeCenterX * viewport.scale;
+            viewport.y = rect.height / 2 - treeCenterY * viewport.scale;
+            applyViewportTransform();
+        }
+
+        function handleSearch(query) {
+            state.searchQuery = query.trim();
+            if (state.searchQuery) {
+                const match = Object.values(state.people).find(p =>
+                    p.name.toLowerCase().includes(state.searchQuery.toLowerCase())
+                );
+                if (match) {
+                    state.selectedPersonId = match.id;
+                    centerCanvasOnSelected();
+                }
+            }
+            renderAll();
+        }
+
+        // JSON Import / Export functions
+        function openJsonModal() {
+            const exportPayload = {
+                people: state.people,
+                unions: state.unions,
+                rootPersonId: state.rootPersonId,
+                selectedPersonId: state.selectedPersonId
+            };
+            document.getElementById('jsonTextarea').value = JSON.stringify(exportPayload, null, 2);
+            const modal = document.getElementById('jsonModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeJsonModal() {
+            const modal = document.getElementById('jsonModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyJsonToClipboard() {
+            const textarea = document.getElementById('jsonTextarea');
+            textarea.select();
+            document.execCommand('copy');
+            showToast('Copied family tree JSON to clipboard!');
+        }
+
+        function importJsonData() {
+            try {
+                const raw = document.getElementById('jsonTextarea').value;
+                const parsed = JSON.parse(raw);
+                if (!parsed.people || !parsed.unions) {
+                    showToast('Invalid JSON format: missing people or unions.');
+                    return;
+                }
+                state.people = parsed.people;
+                state.unions = parsed.unions;
+                state.rootPersonId = parsed.rootPersonId || Object.keys(state.people)[0];
+                state.selectedPersonId = parsed.selectedPersonId || state.rootPersonId;
+                closeJsonModal();
+                renderAll();
+                fitTreeToScreen();
+                showToast('Loaded family tree from JSON!');
+            } catch (err) {
+                showToast('Error parsing JSON. Please check syntax.');
+            }
+        }
+
+        // Initialize on window load
+        window.onload = function () {
+            setupCanvasInteractions();
+            loadSampleData('multi');
+            window.addEventListener('resize', () => {
+                fitTreeToScreen();
+            });
+        };
+    </script>
+</body>
+</html>

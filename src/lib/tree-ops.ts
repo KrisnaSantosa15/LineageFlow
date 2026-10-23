@@ -47,3 +47,25 @@ export function addChild(
   union.children.push(child.id);
   return { tree: next, selectedId: child.id };
 }
+
+/** Marries `personId` to a new or existing person, creating a new union. */
+export function addSpouse(
+  tree: Tree,
+  personId: string,
+  spouse: { existingId: string } | { data: NewPerson },
+  status: Union["status"],
+  label: string,
+): OpResult {
+  const next = structuredClone(tree);
+  let spouseId: string;
+  if ("existingId" in spouse) {
+    spouseId = spouse.existingId;
+  } else {
+    const p = makePerson(spouse.data);
+    next.people[p.id] = p;
+    spouseId = p.id;
+  }
+  const union = makeUnion([personId, spouseId], status, label || "Married");
+  next.unions[union.id] = union;
+  return { tree: next, selectedId: spouseId };
+}

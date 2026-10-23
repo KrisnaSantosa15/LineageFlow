@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-inter);
 }
@@ -13,7 +15,11 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   background: #f8fafc;
   color: #1e293b;
-  overflow: hidden;
+}
+
+html.dark body {
+  background: #0f172a;
+  color: #f1f5f9;
 }
 
 /* Dot-grid canvas */
@@ -21,6 +27,11 @@ body {
   background-color: #f8fafc;
   background-image: radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
   background-size: 24px 24px;
+}
+
+html.dark .bg-dot-grid {
+  background-color: #0f172a;
+  background-image: radial-gradient(#334155 1.25px, transparent 1.25px);
 }
 
 /* Browser surfaces themed from the palette */
@@ -72,10 +83,6 @@ textarea {
 }
 .union-pill:hover {
   scale: 1.1;
-}
-
-dialog::backdrop {
-  background: rgb(15 23 42 / 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {

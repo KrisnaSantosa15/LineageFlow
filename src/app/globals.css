@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  overflow: hidden;
+}
+
+/* Dot-grid canvas */
+.bg-dot-grid {
+  background-color: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
+  background-size: 24px 24px;
+}
+
+/* Browser surfaces themed from the palette */
+::selection {
+  background: #c7d2fe;
+  color: #1e1b4b;
+}
+
+:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  caret-color: #4f46e5;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.node-card {
+  transition:
+    translate 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.node-card:hover {
+  translate: 0 -2px;
+}
+
+.union-pill {
+  transition:
+    scale 0.15s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.15s ease;
+}
+.union-pill:hover {
+  scale: 1.1;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-card,
+  .union-pill {
+    transition: none;
+  }
 }

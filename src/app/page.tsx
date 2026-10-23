@@ -41,7 +41,7 @@ export default function LandingPage() {
   const frameRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 460, y: 240, scale: 0.78 });
 
-  const recenter = useCallback((nextTree = tree) => {
+  const recenter = useCallback((nextTree: ReturnType<typeof PRESETS.multi>) => {
     const el = frameRef.current;
     const rect = el?.getBoundingClientRect();
     const size = rect
@@ -49,12 +49,18 @@ export default function LandingPage() {
       : { width: 960, height: 520 };
     const { positions } = computeLayout(nextTree);
     setView(fitView(positions, size));
-  }, [tree]);
+  }, []);
 
   useEffect(() => {
-    setSelectedId(tree.rootPersonId);
-    recenter(tree);
+    const id = window.requestAnimationFrame(() => recenter(tree));
+    return () => window.cancelAnimationFrame(id);
   }, [tree, recenter]);
+
+  const handleSelectPreset = (nextPreset: PresetName) => {
+    setPreset(nextPreset);
+    const nextTree = PRESETS[nextPreset]();
+    setSelectedId(nextTree.rootPersonId);
+  };
 
   const activeTab = TAB_ITEMS.find((t) => t.id === preset) ?? TAB_ITEMS[0];
 
@@ -111,7 +117,7 @@ export default function LandingPage() {
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    onClick={() => setPreset(id)}
+                    onClick={() => handleSelectPreset(id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer ${
                       active
                         ? "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs"

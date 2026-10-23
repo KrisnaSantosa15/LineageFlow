@@ -90,44 +90,47 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
 
   // Hydrate theme, localStorage tree, and optional ?tree= / ?preset= query parameters
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem(THEME_KEY);
-    const prefersDark =
-      savedTheme === "dark" ||
-      (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(prefersDark);
-    document.documentElement.classList.toggle("dark", prefersDark);
+    const frameId = window.requestAnimationFrame(() => {
+      const savedTheme = window.localStorage.getItem(THEME_KEY);
+      const prefersDark =
+        savedTheme === "dark" ||
+        (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      setDark(prefersDark);
+      document.documentElement.classList.toggle("dark", prefersDark);
 
-    const params = new URLSearchParams(window.location.search);
-    const sharedParam = params.get("tree");
-    const presetParam = params.get("preset") as PresetName | null;
-    const savedRaw = window.localStorage.getItem(STORAGE_KEY);
+      const params = new URLSearchParams(window.location.search);
+      const sharedParam = params.get("tree");
+      const presetParam = params.get("preset") as PresetName | null;
+      const savedRaw = window.localStorage.getItem(STORAGE_KEY);
 
-    if (sharedParam) {
-      const decoded = decodeTreeFromParam(sharedParam);
-      if (decoded) {
-        if (savedRaw) {
-          setPendingSharedTree(decoded);
-        } else {
-          dispatch({ type: "load", tree: decoded });
-          fitCurrentTree(decoded);
-          showToast("Loaded shared family tree");
+      if (sharedParam) {
+        const decoded = decodeTreeFromParam(sharedParam);
+        if (decoded) {
+          if (savedRaw) {
+            setPendingSharedTree(decoded);
+          } else {
+            dispatch({ type: "load", tree: decoded });
+            fitCurrentTree(decoded);
+            showToast("Loaded shared family tree");
+          }
         }
+      } else if (presetParam && PRESETS[presetParam]) {
+        const presetTree = PRESETS[presetParam]();
+        dispatch({ type: "load", tree: presetTree });
+        fitCurrentTree(presetTree);
+      } else if (savedRaw) {
+        const parsed = parseTreeJson(savedRaw);
+        if (parsed.ok) {
+          dispatch({ type: "load", tree: parsed.tree });
+          fitCurrentTree(parsed.tree);
+        }
+      } else {
+        fitCurrentTree(tree);
       }
-    } else if (presetParam && PRESETS[presetParam]) {
-      const presetTree = PRESETS[presetParam]();
-      dispatch({ type: "load", tree: presetTree });
-      fitCurrentTree(presetTree);
-    } else if (savedRaw) {
-      const parsed = parseTreeJson(savedRaw);
-      if (parsed.ok) {
-        dispatch({ type: "load", tree: parsed.tree });
-        fitCurrentTree(parsed.tree);
-      }
-    } else {
-      fitCurrentTree(tree);
-    }
 
-    setHydrated(true);
+      setHydrated(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

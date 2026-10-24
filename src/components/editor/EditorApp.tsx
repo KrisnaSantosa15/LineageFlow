@@ -561,6 +561,19 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
           onOpenAddRelative={(action, personId, unionId) =>
             setModal({ action, personId, unionId })
           }
+          onMoveNode={(id, position) =>
+            dispatch({ type: "moveNode", id, position })
+          }
+          onMoveUnion={(id, position) =>
+            dispatch({ type: "moveUnion", id, position })
+          }
+          onMoveBus={(unionId, busY) =>
+            dispatch({ type: "moveBus", unionId, busY })
+          }
+          onResetLayout={() => {
+            dispatch({ type: "resetLayout" });
+            showToast("Reset cards and lines to automatic layout");
+          }}
         />
 
         <InspectorPanel

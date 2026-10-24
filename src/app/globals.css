@@ -112,6 +112,12 @@ textarea {
   scale: 0.95;
 }
 
+.node-card[data-dragging="true"],
+.union-pill[data-dragging="true"] {
+  transition: none !important;
+  z-index: 40 !important;
+}
+
 @keyframes pop-in {
   from {
     opacity: 0;

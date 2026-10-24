@@ -88,6 +88,24 @@ test.describe("LineageFlow E2E", () => {
     await expect(multiBtn).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByText("9 Members · 4 Unions")).toBeVisible();
 
+    // Drag a connector bus line handle vertically and verify Reset Layout appears and works
+    const busHandle = page.getByTestId("bus-handle-u_4");
+    await expect(busHandle).toBeVisible();
+    await busHandle.hover();
+    const box = await busHandle.boundingBox();
+    if (box) {
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 28, {
+        steps: 5,
+      });
+      await page.mouse.up();
+    }
+    const resetBtn = page.getByRole("button", { name: "Reset Layout" });
+    await expect(resetBtn).toBeVisible();
+    await resetBtn.click();
+    await expect(resetBtn).toBeHidden();
+
     // Toggle dark mode
     await page.getByRole("button", { name: "Toggle color theme" }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);

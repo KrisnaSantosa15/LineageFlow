@@ -29,6 +29,9 @@ test.describe("LineageFlow E2E", () => {
   }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
+    page.on("console", (msg) => {
+      if (msg.type() === "error") errors.push(msg.text());
+    });
 
     await page.goto("/app");
     // Editor starts fresh by default (1 root member, 0 unions)
@@ -111,6 +114,11 @@ test.describe("LineageFlow E2E", () => {
 
     // Toggle dark mode
     await page.getByRole("button", { name: "Toggle color theme" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    // Refresh the page and verify localStorage tree and dark theme persist without hydration errors
+    await page.reload();
+    await expect(page.getByText("9 Members · 4 Unions")).toBeVisible();
     await expect(page.locator("html")).toHaveClass(/dark/);
 
     expect(errors).toEqual([]);

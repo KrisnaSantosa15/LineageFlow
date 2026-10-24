@@ -29,4 +29,21 @@ describe("historyReducer", () => {
     expect(h2.past).toHaveLength(0);
     expect(h2.present.selectedId).toBe("ex");
   });
+
+  it("replaces present on hydrate without adding an undo entry and preserves hydrated flag", () => {
+    const blank = tree([person("root")], [], "root");
+    const h0 = createHistory(initialState(blank));
+    expect(h0.hydrated).toBe(false);
+    const hHydrated = historyReducer(h0, { type: "hydrate", tree: base });
+    expect(hHydrated.hydrated).toBe(true);
+    expect(hHydrated.past).toHaveLength(0);
+    expect(hHydrated.future).toHaveLength(0);
+    expect(Object.keys(hHydrated.present.tree.people)).toHaveLength(2);
+
+    const result = addChild(base, "u", { name: "Kid" });
+    const hApplied = historyReducer(hHydrated, { type: "apply", result });
+    expect(hApplied.hydrated).toBe(true);
+    const hUndone = historyReducer(hApplied, { type: "undo" });
+    expect(hUndone.hydrated).toBe(true);
+  });
 });

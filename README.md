@@ -13,6 +13,12 @@
   No account, no setup. Open it and start drawing.
 </p>
 
+<p align="center">
+  <a href="https://family-lineage-diagram-maker.vercel.app">
+    <img src="./public/demo-editor.png" alt="LineageFlow Interactive Diagram Editor" width="100%" />
+  </a>
+</p>
+
 ```text
 Add a person  ->  add a spouse, add another  ->  add children to each union  ->  done
 ```
@@ -20,6 +26,15 @@ Add a person  ->  add a spouse, add another  ->  add children to each union  -> 
 ---
 
 </div>
+
+## Demo
+
+| Interactive Canvas & Multi-Union Editor | Minimalist Orbital Landing Page |
+| :---: | :---: |
+| <a href="https://family-lineage-diagram-maker.vercel.app/app?preset=multi"><img src="./public/demo-editor.png" alt="LineageFlow Editor" width="100%" /></a> | <a href="https://family-lineage-diagram-maker.vercel.app"><img src="./public/demo-landing.png" alt="LineageFlow Landing Page" width="100%" /></a> |
+| **Canvas**: Draggable cards, union hubs, & lines | **Orbital Hero**: Concentric lineage rings & demo switcher |
+
+---
 
 ## What is it?
 

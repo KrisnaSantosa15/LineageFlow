@@ -4,7 +4,6 @@ import {
   Check,
   CheckCircle2,
   Crosshair,
-  Crown,
   Download,
   FileCode2,
   Image as ImageIcon,
@@ -13,10 +12,8 @@ import {
   Network,
   Redo2,
   Search,
-  Sprout,
   Sun,
   Undo2,
-  WandSparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,7 +29,7 @@ import { initialState } from "@/lib/editor-state";
 import { renderTreeToSvgString } from "@/lib/export-svg";
 import { createHistory, historyReducer } from "@/lib/history";
 import { computeLayout } from "@/lib/layout";
-import { detectPreset, PRESETS, type PresetName } from "@/lib/presets";
+import { PRESETS, type PresetName } from "@/lib/presets";
 import { decodeTreeFromParam, encodeTreeToParam } from "@/lib/share-url";
 import { parseTreeJson, serializeTree } from "@/lib/tree-json";
 import type { OpResult } from "@/lib/tree-ops";
@@ -49,7 +46,7 @@ interface ModalState {
   unionId?: string;
 }
 
-export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetName }) {
+export function EditorApp({ initialPreset = "blank" }: { initialPreset?: PresetName }) {
   const [history, dispatch] = useReducer(
     historyReducer,
     undefined,
@@ -62,11 +59,6 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
 
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [selectedPreset, setSelectedPreset] = useState<PresetName | null>(initialPreset);
-  const activePreset = useMemo(
-    () => detectPreset(tree) ?? selectedPreset,
-    [tree, selectedPreset],
-  );
   const [view, setView] = useState<View>({ x: 480, y: 260, scale: 0.9 });
   const [modal, setModal] = useState<ModalState | null>(null);
   const [jsonModalOpen, setJsonModalOpen] = useState(false);
@@ -127,13 +119,11 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
         }
       } else if (presetParam && PRESETS[presetParam]) {
         const presetTree = PRESETS[presetParam]();
-        setSelectedPreset(presetParam);
         dispatch({ type: "load", tree: presetTree });
         fitCurrentTree(presetTree);
       } else if (savedRaw) {
         const parsed = parseTreeJson(savedRaw);
         if (parsed.ok) {
-          setSelectedPreset(detectPreset(parsed.tree));
           dispatch({ type: "load", tree: parsed.tree });
           fitCurrentTree(parsed.tree);
         }
@@ -204,14 +194,6 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     } catch {
       // Ignore
     }
-  };
-
-  const handleLoadPreset = (preset: PresetName, label: string) => {
-    const nextTree = PRESETS[preset]();
-    setSelectedPreset(preset);
-    dispatch({ type: "load", tree: nextTree });
-    fitCurrentTree(nextTree);
-    showToast(label);
   };
 
   const handleCenterOnSelected = () => {
@@ -306,36 +288,6 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
     img.src = url;
   };
 
-  const presetItems: {
-    id: PresetName;
-    label: string;
-    toastLabel: string;
-    Icon: typeof WandSparkles;
-    iconColor: string;
-  }[] = [
-    {
-      id: "multi",
-      label: "Multi-Marriage Demo",
-      toastLabel: "Loaded Multi-Marriage Family Demo",
-      Icon: WandSparkles,
-      iconColor: "text-indigo-500",
-    },
-    {
-      id: "ancestry",
-      label: "5-Gen Ancestry",
-      toastLabel: "Loaded 5-Generation Deep Ancestry",
-      Icon: Crown,
-      iconColor: "text-amber-500",
-    },
-    {
-      id: "blank",
-      label: "Start Fresh",
-      toastLabel: "Started fresh family tree",
-      Icon: Sprout,
-      iconColor: "text-emerald-500",
-    },
-  ];
-
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
       {/* Top Toolbar */}
@@ -363,33 +315,6 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
               Multi-Unions
             </p>
           </div>
-        </div>
-
-        {/* Center Segmented Preset Switcher */}
-        <div
-          role="group"
-          aria-label="Preset templates"
-          className="hidden lg:inline-flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80"
-        >
-          {presetItems.map(({ id, label, toastLabel, Icon, iconColor }) => {
-            const isActive = activePreset === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => handleLoadPreset(id, toastLabel)}
-                className={`btn-tactile px-2.5 py-1.5 text-xs font-medium rounded-lg inline-flex items-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-700"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-900/40"
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
-                <span>{label}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* Right Action Controls (Grouped Pill Clusters) */}
@@ -485,11 +410,12 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
             <button
               type="button"
               onClick={() => setJsonModalOpen(true)}
-              title="Import / Export JSON or GEDCOM"
+              title="Load Examples, Import / Export JSON or GEDCOM"
               aria-label="Import or export JSON"
-              className="btn-tactile p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg cursor-pointer"
+              className="btn-tactile px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-900 rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
             >
               <FileCode2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Load / Save</span>
             </button>
           </div>
 
@@ -623,12 +549,11 @@ export function EditorApp({ initialPreset = "multi" }: { initialPreset?: PresetN
       {jsonModalOpen && (
         <JsonModal
           tree={tree}
-          onImport={(imported) => {
-            setSelectedPreset(detectPreset(imported));
+          onImport={(imported, label) => {
             dispatch({ type: "load", tree: imported });
             setJsonModalOpen(false);
             fitCurrentTree(imported);
-            showToast("Loaded family tree");
+            showToast(label || "Loaded family tree");
           }}
           onCopySuccess={() => showToast("Copied family tree JSON to clipboard")}
           onClose={() => setJsonModalOpen(false)}

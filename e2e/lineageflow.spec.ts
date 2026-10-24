@@ -24,13 +24,22 @@ test.describe("LineageFlow E2E", () => {
     expect(errors).toEqual([]);
   });
 
-  test("editor supports kinship detection, adding relatives, union editing, undo/redo, JSON, and dark mode", async ({
+  test("editor starts fresh by default, loads examples from load menu, and supports kinship, union editing, undo/redo, JSON, and dark mode", async ({
     page,
   }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
     await page.goto("/app");
+    // Editor starts fresh by default (1 root member, 0 unions)
+    await expect(page.getByText("1 Members · 0 Unions")).toBeVisible();
+    await expect(page.getByText("1 Generations · 0 Multi-Unions")).toBeVisible();
+    await expect(page.getByTestId("kinship-badge")).toHaveText("Self (Root)");
+
+    // Open Load / Save menu to load the Multi-Marriage Demo example
+    await page.getByRole("button", { name: "Import or export JSON" }).click();
+    await page.getByRole("button", { name: /Multi-Marriage Demo/i }).click();
+
     await expect(page.getByText("16 Members · 6 Unions")).toBeVisible();
     await expect(page.getByText("5 Generations · 2 Multi-Unions")).toBeVisible();
     await expect(page.getByTestId("kinship-badge")).toHaveText("Self (Root)");
@@ -58,7 +67,7 @@ test.describe("LineageFlow E2E", () => {
     await page.getByRole("button", { name: "Redo" }).click();
     await expect(page.getByText("17 Members · 6 Unions")).toBeVisible();
 
-    // Open JSON modal, verify Save .ged and Save .json buttons, and test GEDCOM import
+    // Open JSON modal, verify Save .ged and Save .json buttons
     await page.getByRole("button", { name: "Import or export JSON" }).click();
     await expect(page.getByRole("button", { name: "Save .json" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save .ged" })).toBeVisible();
@@ -77,15 +86,9 @@ test.describe("LineageFlow E2E", () => {
     await expect(page.getByText("17 Members · 5 Unions")).toBeVisible();
     await expect(page.getByText("5 Generations · 1 Multi-Unions")).toBeVisible();
 
-    // Switch preset to 5-Gen Ancestry and verify the switcher pill updates active state
-    const multiBtn = page.getByRole("button", { name: "Multi-Marriage Demo" });
-    const ancestryBtn = page.getByRole("button", { name: "5-Gen Ancestry" });
-    await expect(multiBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(ancestryBtn).toHaveAttribute("aria-pressed", "false");
-
-    await ancestryBtn.click();
-    await expect(ancestryBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(multiBtn).toHaveAttribute("aria-pressed", "false");
+    // Load 5-Gen Ancestry example from the Load / Save menu
+    await page.getByRole("button", { name: "Import or export JSON" }).click();
+    await page.getByRole("button", { name: /5-Gen Ancestry/i }).click();
     await expect(page.getByText("9 Members · 4 Unions")).toBeVisible();
 
     // Drag a connector bus line handle vertically and verify Reset Layout appears and works

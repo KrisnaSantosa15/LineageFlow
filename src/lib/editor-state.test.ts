@@ -29,4 +29,28 @@ describe("editorReducer", () => {
     expect(s.tree.people.ex.name).toBe("Zed");
     expect(s.tree.people.me.name).toBe("me");
   });
+
+  it("records custom node, union, and busY overrides and clears them on resetLayout", () => {
+    let s = editorReducer(start, {
+      type: "moveNode",
+      id: "me",
+      position: { x: 140, y: -20 },
+    });
+    s = editorReducer(s, {
+      type: "moveUnion",
+      id: "u",
+      position: { x: 240, y: 30 },
+    });
+    s = editorReducer(s, {
+      type: "moveBus",
+      unionId: "u",
+      busY: 165,
+    });
+    expect(s.tree.overrides?.nodePositions?.me).toEqual({ x: 140, y: -20 });
+    expect(s.tree.overrides?.unionPositions?.u).toEqual({ x: 240, y: 30 });
+    expect(s.tree.overrides?.busY?.u).toBe(165);
+
+    s = editorReducer(s, { type: "resetLayout" });
+    expect(s.tree.overrides).toBeUndefined();
+  });
 });

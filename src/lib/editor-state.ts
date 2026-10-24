@@ -1,6 +1,6 @@
 import type { OpResult } from "./tree-ops";
 import { deletePerson, deleteUnion, updateUnion } from "./tree-ops";
-import type { Person, Tree, Union } from "./types";
+import type { LayoutPoint, Person, Tree, Union } from "./types";
 
 export interface EditorState {
   tree: Tree;
@@ -17,7 +17,11 @@ export type EditorAction =
   | { type: "deleteUnion"; id: string }
   | { type: "delete"; id: string }
   | { type: "setRoot"; id: string }
-  | { type: "search"; query: string };
+  | { type: "search"; query: string }
+  | { type: "moveNode"; id: string; position: LayoutPoint }
+  | { type: "moveUnion"; id: string; position: LayoutPoint }
+  | { type: "moveBus"; unionId: string; busY: number }
+  | { type: "resetLayout" };
 
 export const initialState = (tree: Tree): EditorState => ({
   tree,
@@ -60,5 +64,56 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, tree: { ...state.tree, rootPersonId: action.id } };
     case "search":
       return { ...state, search: action.query };
+    case "moveNode": {
+      if (!state.tree.people[action.id]) return state;
+      const prevOverrides = state.tree.overrides ?? {};
+      const tree: Tree = {
+        ...state.tree,
+        overrides: {
+          ...prevOverrides,
+          nodePositions: {
+            ...prevOverrides.nodePositions,
+            [action.id]: action.position,
+          },
+        },
+      };
+      return { ...state, tree };
+    }
+    case "moveUnion": {
+      if (!state.tree.unions[action.id]) return state;
+      const prevOverrides = state.tree.overrides ?? {};
+      const tree: Tree = {
+        ...state.tree,
+        overrides: {
+          ...prevOverrides,
+          unionPositions: {
+            ...prevOverrides.unionPositions,
+            [action.id]: action.position,
+          },
+        },
+      };
+      return { ...state, tree };
+    }
+    case "moveBus": {
+      if (!state.tree.unions[action.unionId]) return state;
+      const prevOverrides = state.tree.overrides ?? {};
+      const tree: Tree = {
+        ...state.tree,
+        overrides: {
+          ...prevOverrides,
+          busY: {
+            ...prevOverrides.busY,
+            [action.unionId]: action.busY,
+          },
+        },
+      };
+      return { ...state, tree };
+    }
+    case "resetLayout": {
+      if (!state.tree.overrides) return state;
+      const restTree = { ...state.tree };
+      delete restTree.overrides;
+      return { ...state, tree: restTree };
+    }
   }
 }

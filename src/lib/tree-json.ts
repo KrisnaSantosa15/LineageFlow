@@ -20,5 +20,13 @@ export function parseTreeJson(raw: string): ParseResult {
     return { ok: false, error: "The tree has no people." };
   }
   const root = d.rootPersonId && d.people[d.rootPersonId] ? d.rootPersonId : ids[0];
-  return { ok: true, tree: { people: d.people, unions: d.unions, rootPersonId: root } };
+  return {
+    ok: true,
+    tree: {
+      people: d.people,
+      unions: d.unions,
+      rootPersonId: root,
+      ...(d.overrides ? { overrides: d.overrides } : {}),
+    },
+  };
 }

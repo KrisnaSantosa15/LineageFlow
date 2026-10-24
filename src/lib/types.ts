@@ -19,8 +19,20 @@ export interface Union {
   label: string;
 }
 
+export interface LayoutPoint {
+  x: number;
+  y: number;
+}
+
+export interface LayoutOverrides {
+  nodePositions?: Record<string, LayoutPoint>;
+  unionPositions?: Record<string, LayoutPoint>;
+  busY?: Record<string, number>;
+}
+
 export interface Tree {
   people: Record<string, Person>;
   unions: Record<string, Union>;
   rootPersonId: string | null;
+  overrides?: LayoutOverrides;
 }
